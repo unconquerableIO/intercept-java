@@ -1,1 +1,1 @@
-# intercept-java-sdk
+# intercept-java
