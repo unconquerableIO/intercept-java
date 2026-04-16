@@ -1,0 +1,16 @@
+# Set default behavior to automatically normalize line endings
+* text=auto
+
+# Force LF for the Gradle wrapper and all shell scripts
+# This prevents "Command not found" or "Standard input" errors on Linux/Mac
+gradlew      text eol=lf
+*.sh         text eol=lf
+
+# Force CRLF for Windows batch files
+*.bat        text eol=crlf
+*.cmd        text eol=crlf
+
+# Ensure images and jars are never touched
+*.jar        binary
+*.png        binary
+*.jpg        binary
