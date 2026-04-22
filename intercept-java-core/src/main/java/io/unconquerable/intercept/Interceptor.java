@@ -1,5 +1,7 @@
 package io.unconquerable.intercept;
 
+import jakarta.annotation.Nonnull;
+
 import java.util.*;
 
 /**
@@ -15,12 +17,11 @@ public class Interceptor {
         return new Interceptor();
     }
 
-    public <T> Interceptor detector(Class<T> clazz, Detector<T> detector) {
+    public <T> Interceptor detector(@Nonnull Class<T> clazz, @Nonnull Detector<T> detector) {
         Optional.of(clazz)
                 .filter(registry::containsKey)
-                .ifPresentOrElse(
-                        c -> registry.get(c).add(detector), () -> registry.put(clazz, new ArrayList<>(List.of(detector))));
-        registry.put(clazz, List.of(detector));
+                .ifPresentOrElse(c -> registry.get(c).add(detector),
+                        () -> registry.put(clazz, new ArrayList<>(List.of(detector))));
         return this;
     }
 
