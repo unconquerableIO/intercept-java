@@ -4,6 +4,13 @@ plugins {
     id("com.vanniktech.maven.publish")
 }
 
+plugins.withId("java") {
+    extensions.configure<JavaPluginExtension> {
+        withJavadocJar()
+        withSourcesJar()
+    }
+}
+
 mavenPublishing {
 
     publishToMavenCentral(SonatypeHost.CENTRAL_PORTAL)
