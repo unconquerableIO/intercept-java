@@ -28,9 +28,8 @@ Thumbs.db
 *.log
 
 # --- Local Environment ---
-# Keep your local credentials and secrets private
+# Credentials (signing keys, Sonatype tokens) belong in ~/.gradle/gradle.properties, not here
 gradle.properties.local
-gradle.properties
 .env
 
 # --- Claude Code ---

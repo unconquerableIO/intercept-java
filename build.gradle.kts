@@ -3,6 +3,6 @@ plugins {
 }
 
 allprojects {
-    group = "io.unconquerable"
-    version = project.findProperty("projectVersion") ?: "0.0.1-SNAPSHOT"
+    group   = property("projectGroup").toString()
+    version = property("projectVersion").toString()
 }
