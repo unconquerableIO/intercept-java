@@ -148,6 +148,95 @@ class DecisionTest {
     // =========================================================================
 
     @Nested
+    class RunnableHandlers {
+
+        @Test
+        void onBlock_runnable_is_invoked_for_block_verdict() {
+            boolean[] ran = {false};
+            new Decision<Void>(decidedToBlock())
+                    .onBlock(() -> ran[0] = true)
+                    .result();
+            assertTrue(ran[0]);
+        }
+
+        @Test
+        void onProceed_runnable_is_invoked_for_proceed_verdict() {
+            boolean[] ran = {false};
+            new Decision<Void>(decidedToProceed())
+                    .onProceed(() -> ran[0] = true)
+                    .result();
+            assertTrue(ran[0]);
+        }
+
+        @Test
+        void onChallenge_runnable_is_invoked_for_challenge_verdict() {
+            boolean[] ran = {false};
+            new Decision<Void>(decidedToChallenge())
+                    .onChallenge(() -> ran[0] = true)
+                    .result();
+            assertTrue(ran[0]);
+        }
+
+        @Test
+        void onDefer_runnable_is_invoked_for_defer_verdict() {
+            boolean[] ran = {false};
+            new Decision<Void>(decidedToDefer())
+                    .onDefer(() -> ran[0] = true)
+                    .result();
+            assertTrue(ran[0]);
+        }
+
+        @Test
+        void runnable_is_not_invoked_when_verdict_does_not_match() {
+            boolean[] ran = {false, false, false};
+
+            new Decision<Void>(decidedToBlock())
+                    .onBlock(() -> {})
+                    .onProceed(() -> ran[0] = true)
+                    .onChallenge(() -> ran[1] = true)
+                    .onDefer(() -> ran[2] = true)
+                    .result();
+
+            assertFalse(ran[0], "onProceed runnable should not run");
+            assertFalse(ran[1], "onChallenge runnable should not run");
+            assertFalse(ran[2], "onDefer runnable should not run");
+        }
+
+        @Test
+        void result_is_empty_when_only_runnable_handler_fires() {
+            var result = new Decision<String>(decidedToBlock())
+                    .onBlock(() -> {})
+                    .result();
+            assertEquals(Optional.empty(), result);
+        }
+
+        @Test
+        void runnable_and_supplier_overloads_can_be_mixed_on_different_verdicts() {
+            // BLOCK fires the runnable (side effect); result comes from onProceed supplier
+            // but since verdict is BLOCK, onProceed supplier does not fire
+            boolean[] ran = {false};
+            var result = new Decision<String>(decidedToBlock())
+                    .onBlock(() -> ran[0] = true)
+                    .onProceed(() -> "proceed")
+                    .result();
+
+            assertTrue(ran[0]);
+            assertEquals(Optional.empty(), result);
+        }
+
+        @Test
+        void runnable_overload_returns_same_decision_instance() {
+            var decision = new Decision<Void>(decidedToBlock());
+            assertSame(decision, decision.onBlock(() -> {}));
+            assertSame(decision, decision.onProceed(() -> {}));
+            assertSame(decision, decision.onChallenge(() -> {}));
+            assertSame(decision, decision.onDefer(() -> {}));
+        }
+    }
+
+    // =========================================================================
+
+    @Nested
     class Chaining {
 
         @Test

@@ -328,6 +328,54 @@ class InterceptorTest {
     // =========================================================================
 
     @Nested
+    class RunnableHandlers {
+
+        @Test
+        void runnable_handler_executes_side_effect_in_pipeline() {
+            boolean[] blocked = {false};
+
+            interceptor()
+                    .detect("192.168.1.1", ALWAYS_DETECTED)
+                    .<Void>decide(BLOCK_ON_DETECTED)
+                    .onBlock(() -> blocked[0] = true)
+                    .onProceed(() -> fail("onProceed should not run"))
+                    .result();
+
+            assertTrue(blocked[0]);
+        }
+
+        @Test
+        void runnable_handler_does_not_fire_when_verdict_does_not_match() {
+            boolean[] ran = {false};
+
+            interceptor()
+                    .detect("192.168.1.1", ALWAYS_CLEAN)
+                    .<Void>decide(BLOCK_ON_DETECTED)
+                    .onBlock(() -> ran[0] = true)
+                    .onProceed(() -> {})
+                    .result();
+
+            assertFalse(ran[0]);
+        }
+
+        @Test
+        void runnable_and_supplier_can_be_combined_for_different_verdicts_in_pipeline() {
+            // Block path uses a Runnable (side effect only); proceed path uses a Supplier
+            boolean[] auditLogged = {false};
+
+            Optional<String> result = interceptor()
+                    .detect("192.168.1.1", ALWAYS_DETECTED)
+                    .<String>decide(BLOCK_ON_DETECTED)
+                    .onBlock(() -> auditLogged[0] = true)
+                    .onProceed(() -> "ok")
+                    .result();
+
+            assertTrue(auditLogged[0]);
+            assertEquals(Optional.empty(), result); // Runnable produces no value
+        }
+    }
+
+    @Nested
     class DecidedTypeChecks {
 
         @Test

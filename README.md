@@ -46,7 +46,7 @@ Optional<Response> response = Interceptor.interceptor()
 - **Composable detectors** — register as many detectors as you need; each runs independently.
 - **Conditional execution** — wrap any detector in a runtime condition to skip expensive calls when they are not needed.
 - **Four verdict types** — `BLOCK`, `PROCEED`, `CHALLENGE`, and `DEFER` cover the full spectrum of fraud responses.
-- **Type-safe result handling** — fluent `onBlock` / `onProceed` / `onChallenge` / `onDefer` handlers return a typed `Optional<R>`; only the matching handler fires.
+- **Type-safe result handling** — fluent `onBlock` / `onProceed` / `onChallenge` / `onDefer` handlers return a typed `Optional<R>`; only the matching handler fires. Each verdict also has a `Runnable` overload for side-effect-only handling (logging, metrics, events) with no return value.
 - **Audit metadata** — attach structured `DecisionDetail` to any verdict for logging and compliance.
 - **Zero framework coupling** — plain Java 25 with no mandatory runtime dependencies beyond Jakarta Annotations.
 
@@ -139,7 +139,7 @@ The library is built around five types that work together in a linear pipeline.
 | `Detector<T>` | Analyses a single target value and returns a `Detected` result |
 | `Detected` | The output of one detector — either a `DetectedScore` or a `DetectedStatus` |
 | `Decider` | Examines all `Detected` results and returns a `Decided` verdict |
-| `Decision<R>` | Maps each verdict type to a caller-supplied handler and returns the result |
+| `Decision<R>` | Maps each verdict type to a caller-supplied `Supplier<R>` or `Runnable` handler and returns the result |
 
 ### Detection result types
 
@@ -273,6 +273,32 @@ Optional<ApiResponse> response = Interceptor.interceptor()
 ```
 
 Only one handler fires — whichever matches the verdict. If no handler is registered for the active verdict, `result()` returns `Optional.empty()`.
+
+#### Side-effect handlers
+
+Every verdict also accepts a `Runnable` overload for cases where you need to react to an outcome — emit a metric, write an audit log, publish an event — without producing a return value. `result()` returns `Optional.empty()` when only a `Runnable` handler fires.
+
+```java
+interceptor()
+    .detect(request.getIpAddress(), ipDetector)
+    .decide(decider)
+    .onBlock(() -> auditLog.record("blocked", request.getIpAddress()))  // Runnable — no return
+    .onBlock(() -> ApiResponse.forbidden("Request blocked"))             // Supplier — returns value
+    .onProceed(() -> orderService.submit(request))
+    .result();
+```
+
+Both overloads can target the same verdict. The `Runnable` fires for its side effect; the `Supplier` sets `result()`. Mixing them on different verdicts is equally valid:
+
+```java
+interceptor()
+    .detect(request.getUserId(), velocityDetector)
+    .decide(decider)
+    .onBlock(() -> metrics.increment("fraud.blocked"))   // side effect only
+    .onChallenge(() -> metrics.increment("fraud.challenged"))
+    .onProceed(() -> orderService.submit(request))       // produces a result
+    .result();
+```
 
 ---
 

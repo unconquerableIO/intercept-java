@@ -76,6 +76,29 @@ public class Decision<R> {
     }
 
     /**
+     * Registers a side-effect handler to invoke when the verdict is {@link Decided.Type#BLOCK}.
+     *
+     * <p>Use this overload when the block outcome requires only a side effect — such as writing
+     * an audit log entry, incrementing a metric, or publishing an event — and no return value
+     * is needed. Because {@link Runnable} produces no value, {@link #result()} will return
+     * {@link Optional#empty()} even when this handler fires.
+     *
+     * <p>To both perform a side effect and produce a result, use
+     * {@link #onBlock(Supplier)} instead.
+     *
+     * @param runnable the side-effect handler to run when the request is blocked; must not be
+     *                 {@code null}
+     * @return this {@code Decision} for fluent chaining
+     */
+    public Decision<R> onBlock(@Nonnull Runnable runnable) {
+        if (decided.toBlock()) {
+            runnable.run();
+        }
+        return this;
+    }
+
+
+    /**
      * Registers a handler to invoke when the verdict is {@link Decided.Type#PROCEED}.
      *
      * <p>The supplier is invoked immediately if the verdict matches; otherwise this call is a
@@ -88,6 +111,28 @@ public class Decision<R> {
     public Decision<R> onProceed(@Nonnull Supplier<R> supplier) {
         if (decided.toProceed()) {
             result = supplier.get();
+        }
+        return this;
+    }
+
+    /**
+     * Registers a side-effect handler to invoke when the verdict is {@link Decided.Type#PROCEED}.
+     *
+     * <p>Use this overload when the proceed outcome requires only a side effect — such as
+     * recording a successful check, emitting a trace span, or updating a cache — and no return
+     * value is needed. Because {@link Runnable} produces no value, {@link #result()} will return
+     * {@link Optional#empty()} even when this handler fires.
+     *
+     * <p>To both perform a side effect and produce a result, use
+     * {@link #onProceed(Supplier)} instead.
+     *
+     * @param runnable the side-effect handler to run when the request is allowed to proceed;
+     *                 must not be {@code null}
+     * @return this {@code Decision} for fluent chaining
+     */
+    public Decision<R> onProceed(@Nonnull Runnable runnable) {
+        if (decided.toProceed()) {
+            runnable.run();
         }
         return this;
     }
@@ -110,6 +155,28 @@ public class Decision<R> {
     }
 
     /**
+     * Registers a side-effect handler to invoke when the verdict is {@link Decided.Type#CHALLENGE}.
+     *
+     * <p>Use this overload when the challenge outcome requires only a side effect — such as
+     * triggering a CAPTCHA session, publishing a challenge event, or incrementing a friction
+     * counter — and no return value is needed. Because {@link Runnable} produces no value,
+     * {@link #result()} will return {@link Optional#empty()} even when this handler fires.
+     *
+     * <p>To both perform a side effect and produce a result, use
+     * {@link #onChallenge(Supplier)} instead.
+     *
+     * @param runnable the side-effect handler to run when a challenge is required; must not be
+     *                 {@code null}
+     * @return this {@code Decision} for fluent chaining
+     */
+    public Decision<R> onChallenge(@Nonnull Runnable runnable) {
+        if (decided.toChallenge()) {
+            runnable.run();
+        }
+        return this;
+    }
+
+    /**
      * Registers a handler to invoke when the verdict is {@link Decided.Type#DEFER}.
      *
      * <p>The supplier is invoked immediately if the verdict matches; otherwise this call is a
@@ -125,6 +192,29 @@ public class Decision<R> {
         }
         return this;
     }
+
+    /**
+     * Registers a side-effect handler to invoke when the verdict is {@link Decided.Type#DEFER}.
+     *
+     * <p>Use this overload when the defer outcome requires only a side effect — such as
+     * enqueuing a review task, notifying an analyst queue, or emitting a deferral metric —
+     * and no return value is needed. Because {@link Runnable} produces no value,
+     * {@link #result()} will return {@link Optional#empty()} even when this handler fires.
+     *
+     * <p>To both perform a side effect and produce a result, use
+     * {@link #onDefer(Supplier)} instead.
+     *
+     * @param runnable the side-effect handler to run when the decision is deferred; must not be
+     *                 {@code null}
+     * @return this {@code Decision} for fluent chaining
+     */
+    public Decision<R> onDefer(@Nonnull Runnable runnable) {
+        if (decided.toDefer()) {
+            runnable.run();
+        }
+        return this;
+    }
+
 
     /**
      * Returns the result produced by the matching outcome handler, if any.
