@@ -3,12 +3,6 @@ plugins {
     signing
 }
 
-plugins.withId("java") {
-    extensions.configure<JavaPluginExtension> {
-        withJavadocJar()
-        withSourcesJar()
-    }
-}
 
 extensions.configure<SigningExtension> {
     useGpgCmd()
