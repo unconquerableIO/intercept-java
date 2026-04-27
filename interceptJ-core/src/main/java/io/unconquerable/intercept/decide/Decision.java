@@ -1,7 +1,10 @@
 package io.unconquerable.intercept.decide;
 
+import io.unconquerable.intercept.detect.Detected;
+import io.unconquerable.intercept.send.Sender;
 import jakarta.annotation.Nonnull;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.function.Supplier;
 
@@ -44,6 +47,7 @@ import static java.util.Optional.ofNullable;
 public class Decision<R> {
 
     private final Decided decided;
+    private final List<Detected<?>> detections;
     private R result;
 
     /**
@@ -55,7 +59,13 @@ public class Decision<R> {
      * @param decided the verdict produced by the {@link Decider}; must not be {@code null}
      */
     public Decision(@Nonnull Decided decided) {
+        this(decided, List.of());
+    }
+
+
+    public Decision(@Nonnull Decided decided, @Nonnull List<Detected<?>> detections) {
         this.decided = decided;
+        this.detections = detections;
     }
 
     /**
@@ -215,6 +225,10 @@ public class Decision<R> {
         return this;
     }
 
+    public Decision<R> send(Sender<R> sender) {
+        sender.send(result, decided, detections);
+        return this;
+    }
 
     /**
      * Returns the result produced by the matching outcome handler, if any.

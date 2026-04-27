@@ -54,16 +54,22 @@ public interface Detector<T> {
      *
      * <p>Implementations should return one of the built-in result types:
      * <ul>
-     *   <li>{@link DetectedScore} — when the analysis yields a continuous risk score</li>
+     *   <li>{@link DetectedScore} — when the analysis yields a continuous risk score
+     *       (e.g. {@code new DetectedScore<>(name(), target, score)})</li>
      *   <li>{@link DetectedStatus} — when the analysis produces a discrete status
-     *       ({@code DETECTED}, {@code NOT_DETECTED})</li>
+     *       (e.g. {@code new DetectedStatus<>(name(), target, Status.DETECTED)})</li>
      * </ul>
-     * Custom {@link Detected} implementations are also permitted.
+     * Custom {@link Detected}{@code <T>} implementations are also permitted for richer,
+     * domain-specific result structures.
+     *
+     * <p>The {@code target} must be included in the returned result so that
+     * {@link io.unconquerable.intercept.decide.Decider} implementations and audit consumers
+     * can access the inspected value via {@link Detected#target()} without a separate lookup.
      *
      * @param target the value to analyse; will not be {@code null} when invoked through
      *               {@link io.unconquerable.intercept.Interceptor}
-     * @return a non-null {@link Detected} result describing the outcome of the analysis
+     * @return a non-null {@link Detected}{@code <T>} result describing the outcome of the analysis
      */
-    Detected detect(T target);
+    Detected<T> detect(T target);
 
 }

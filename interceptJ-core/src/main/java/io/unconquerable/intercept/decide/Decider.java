@@ -57,6 +57,6 @@ public interface Decider {
      *                   registered
      * @return a non-null {@link Decided} verdict indicating the action to take
      */
-    Decided decide(List<Detected> detections);
+    Decided decide(List<Detected<?>> detections);
 
 }

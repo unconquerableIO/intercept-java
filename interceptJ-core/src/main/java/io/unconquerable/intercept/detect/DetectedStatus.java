@@ -9,28 +9,35 @@ import jakarta.annotation.Nonnull;
  * ternary signal — for example, whether a device fingerprint is on a blocklist, whether a
  * transaction matches a known fraud pattern, or whether the detector was conditionally skipped.
  *
- * <p>The {@link Status#SKIPPED} value is set automatically by
- * {@link ConditionalDetector} when its runtime condition evaluates to {@code false},
- * so that the detector's slot in the result list is preserved without producing a false signal.
+ * <p>The {@link Status#SKIPPED} value is produced automatically by {@link ConditionalDetector}
+ * when its runtime condition evaluates to {@code false}, preserving the detector's slot in the
+ * result list without producing a false negative. In this case {@link #target()} may be
+ * {@code null} because no analysis was performed.
  *
  * <p>Example usage inside a custom {@link Detector}:
  * <pre>{@code
- * public Detected detect(String deviceId) {
+ * public Detected<String> detect(String deviceId) {
  *     boolean onBlocklist = blocklistService.contains(deviceId);
- *     return new DetectedStatus(name(),
+ *     return new DetectedStatus<>(name(), deviceId,
  *             onBlocklist ? Status.DETECTED : Status.NOT_DETECTED);
  * }
  * }</pre>
  *
+ * @param <T>          the type of the target value that was analysed
  * @param detectorName the name of the {@link Detector} that produced this result; must not be
  *                     {@code null}
+ * @param target       the value that was submitted to the detector for analysis; may be
+ *                     {@code null} when {@link Status#SKIPPED} is produced by a
+ *                     {@link ConditionalDetector} with no configured {@code whenSkipped} supplier
  * @param status       the discrete outcome of the detection; must not be {@code null}
  * @author Rizwan Idrees
  * @see Status
  * @see DetectedScore
  * @see ConditionalDetector
  */
-public record DetectedStatus(@Nonnull String detectorName, @Nonnull Status status) implements Detected {
+public record DetectedStatus<T>(@Nonnull String detectorName,
+                                @Nonnull T target,
+                                @Nonnull Status status) implements Detected<T> {
 
     /**
      * The set of discrete outcomes a status-based detector can report.

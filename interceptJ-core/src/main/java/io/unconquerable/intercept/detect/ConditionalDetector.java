@@ -1,6 +1,7 @@
 package io.unconquerable.intercept.detect;
 
 import java.util.Objects;
+import java.util.Optional;
 import java.util.function.BooleanSupplier;
 import java.util.function.Supplier;
 
@@ -12,17 +13,30 @@ import java.util.function.Supplier;
  * {@code ConditionalDetector} lets you attach a runtime predicate to any {@link Detector} so
  * that the underlying analysis runs only when truly needed.
  *
- * <p>When the condition evaluates to {@code false}, the detector is bypassed and a
- * {@link DetectedStatus} with {@link DetectedStatus.Status#SKIPPED} is returned, preserving
- * the detector's slot in the result list without producing a false negative.
+ * <p>When the condition evaluates to {@code false}, the detector is bypassed. The result is
+ * determined as follows:
+ * <ol>
+ *   <li>If a custom {@code whenSkipped} supplier was provided via
+ *       {@link ConditionalDetectorBuilder#whenSkipped(Supplier)}, its value is returned.</li>
+ *   <li>Otherwise a {@link DetectedStatus} with {@link DetectedStatus.Status#SKIPPED} is
+ *       returned as the default, preserving the detector's slot in the result list without
+ *       producing a false negative.</li>
+ * </ol>
  *
  * <p>Instances are created through the fluent builder exposed by
  * {@link Detectors#detector(Detector)} (preferred) or {@link #detector(Detector)}:
  *
  * <pre>{@code
+ * // Basic conditional — skip when feature flag is off
  * Detector<String> conditional = Detectors.detector(velocityDetector)
  *     .when(() -> request.isAuthenticated())
  *     .and(() -> featureFlags.isVelocityCheckEnabled())
+ *     .build();
+ *
+ * // Custom skip result — return NOT_DETECTED instead of SKIPPED
+ * Detector<String> withCustomSkip = Detectors.detector(velocityDetector)
+ *     .when(() -> request.isAuthenticated())
+ *     .whenSkipped(() -> new DetectedStatus<>("velocity", null, DetectedStatus.Status.NOT_DETECTED))
  *     .build();
  *
  * interceptor()
@@ -31,17 +45,20 @@ import java.util.function.Supplier;
  * }</pre>
  *
  * @param <T>         the type of the target value the wrapped detector analyses
- * @param detector    the underlying detector to delegate to when the condition is met
- * @param condition   the runtime guard; {@code true} means the detector runs
- * @param whenSkipped factory for the result returned when the condition is {@code false};
- *                    defaults to a {@link DetectedStatus.Status#SKIPPED} result
+ * @param detector    the underlying detector to delegate to when the condition is met;
+ *                    must not be {@code null}
+ * @param condition   the runtime guard evaluated on every {@link #detect(Object)} call;
+ *                    {@code true} means the wrapped detector runs; must not be {@code null}
+ * @param whenSkipped optional factory for the result returned when the condition is
+ *                    {@code false}; when {@code null} the default
+ *                    {@link DetectedStatus.Status#SKIPPED} result is used
  * @author Rizwan Idrees
  * @see Detectors
  * @see DetectedStatus.Status#SKIPPED
  */
 public record ConditionalDetector<T>(Detector<T> detector,
                                      BooleanSupplier condition,
-                                     Supplier<Detected> whenSkipped) implements Detector<T> {
+                                     Supplier<Detected<T>> whenSkipped) implements Detector<T> {
 
     /**
      * Creates a new {@link ConditionalDetectorBuilder} for the given detector.
@@ -71,11 +88,10 @@ public record ConditionalDetector<T>(Detector<T> detector,
 
         private final Detector<T> detector;
         private BooleanSupplier composed = () -> true;
-        private final Supplier<Detected> whenSkipped;
+        private Supplier<Detected<T>> whenSkipped;
 
         ConditionalDetectorBuilder(Detector<T> detector) {
             this.detector = Objects.requireNonNull(detector);
-            this.whenSkipped = () -> new DetectedStatus(detector.name(), DetectedStatus.Status.SKIPPED);
         }
 
         /**
@@ -125,9 +141,35 @@ public record ConditionalDetector<T>(Detector<T> detector,
         }
 
         /**
+         * Overrides the result returned when the condition evaluates to {@code false}.
+         *
+         * <p>By default, a skipped detector returns a {@link DetectedStatus} with
+         * {@link DetectedStatus.Status#SKIPPED}. Use this method when a different result is
+         * required — for example, returning {@link DetectedStatus.Status#NOT_DETECTED} to treat
+         * a skipped detector as a clean signal rather than an absent one.
+         *
+         * <p>If not called, the built {@link ConditionalDetector} falls back to the default
+         * {@code SKIPPED} result automatically.
+         *
+         * @param whenSkipped the factory that produces the result when this detector is skipped;
+         *                    must not be {@code null}
+         * @return this builder for fluent chaining
+         */
+        public ConditionalDetectorBuilder<T> whenSkipped(Supplier<Detected<T>> whenSkipped) {
+            this.whenSkipped = whenSkipped;
+            return this;
+        }
+
+        /**
          * Builds and returns the configured {@link ConditionalDetector}.
          *
-         * @return a new {@code ConditionalDetector} with the composed condition
+         * <p>The {@code whenSkipped} supplier is optional. If
+         * {@link #whenSkipped(Supplier)} was not called, the built detector will fall back to
+         * returning a {@link DetectedStatus} with {@link DetectedStatus.Status#SKIPPED} whenever
+         * the condition is {@code false}.
+         *
+         * @return a new {@code ConditionalDetector} with the composed condition and optional
+         *         custom skip result
          */
         public ConditionalDetector<T> build() {
             return new ConditionalDetector<>(detector, composed, whenSkipped);
@@ -146,20 +188,31 @@ public record ConditionalDetector<T>(Detector<T> detector,
     }
 
     /**
-     * Evaluates the condition and either delegates to the wrapped detector or returns a
-     * {@link DetectedStatus.Status#SKIPPED} result.
+     * Evaluates the condition and either delegates to the wrapped detector or returns a skip result.
      *
-     * @param target the value to analyze if the condition is met
+     * <p>Resolution order when the condition is {@code false}:
+     * <ol>
+     *   <li>If a custom {@code whenSkipped} supplier was provided, its result is returned.</li>
+     *   <li>Otherwise a {@link DetectedStatus} carrying {@link DetectedStatus.Status#SKIPPED}
+     *       and the original {@code target} value is returned as the default.</li>
+     * </ol>
+     *
+     * @param target the value to analyse if the condition is {@code true}; passed through to
+     *               the default {@code SKIPPED} result when the condition is {@code false} so
+     *               that the target is always traceable in the detection output
      * @return the wrapped detector's {@link Detected} result when the condition is {@code true};
-     *         otherwise the result of {@code whenSkipped}, which defaults to a
+     *         otherwise the custom skip result if one was configured, or a default
      *         {@link DetectedStatus} with {@link DetectedStatus.Status#SKIPPED}
      */
     @Override
-    public Detected detect(T target) {
+    public Detected<T> detect(T target) {
         if (condition.getAsBoolean()) {
             return detector.detect(target);
         }
-        return whenSkipped.get();
+
+        return Optional.ofNullable(whenSkipped)
+                .map(Supplier::get)
+                .orElseGet(() -> new DetectedStatus<>(detector.name(), target, DetectedStatus.Status.SKIPPED));
     }
 
 }

@@ -40,11 +40,11 @@ import java.util.List;
  * <p>Instances are not thread-safe and should not be shared across threads. Create a new
  * {@code Interceptor} per request or invocation.
  *
+ * @author Rizwan Idrees
  * @see Detector
  * @see Decider
  * @see Decision
  * @see io.unconquerable.intercept.detect.Detectors
- * @author Rizwan Idrees
  */
 public class Interceptor {
 
@@ -84,23 +84,28 @@ public class Interceptor {
     /**
      * Executes all registered detectors and delegates their results to the given {@link Decider}.
      *
-     * <p>Each registered {@link Detector} is invoked against its corresponding target value,
-     * producing a {@link Detected} result. The full list of results is then passed to
-     * {@code decider}, which produces a {@link Decided} outcome. The outcome is wrapped in a
-     * {@link Decision} that exposes typed handler methods for each possible outcome.
+     * <p>Each registered {@link Detector} is invoked against its corresponding target value in
+     * registration order, producing a {@link Detected} result. The full list of results is passed
+     * to {@code decider}, which produces a {@link Decided} outcome. Both the verdict and the
+     * detection results are forwarded to the returned {@link Decision}, making the raw detections
+     * accessible to {@link io.unconquerable.intercept.send.Sender} implementations registered via
+     * {@link Decision#send(io.unconquerable.intercept.send.Sender)}.
      *
      * @param <R>     the result type produced by the outcome handlers
      * @param decider the strategy that examines all {@link Detected} results and reaches a
      *                verdict; must not be {@code null}
-     * @return a {@link Decision} ready for fluent outcome handling
+     * @return a {@link Decision} carrying the verdict and the full list of detection results,
+     *         ready for fluent outcome handling
      */
     public <R> Decision<R> decide(@Nonnull Decider decider) {
-        List<Detected> detections = detectables.stream().map(this::detect).toList();
-        Decided decided = decider.decide(detections);
-        return new Decision<>(decided);
+        final List<Detected<?>> detections = new ArrayList<>();
+        detectables.forEach(d -> detections.add(detect(d)));
+
+        final Decided decided = decider.decide(detections);
+        return new Decision<>(decided, detections);
     }
 
-    private <T> Detected detect(Detectable<T> detectable) {
+    private <T> Detected<T> detect(Detectable<T> detectable) {
         return detectable.detector.detect(detectable.t);
     }
 

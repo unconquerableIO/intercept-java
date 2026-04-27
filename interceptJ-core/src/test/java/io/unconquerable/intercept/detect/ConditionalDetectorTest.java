@@ -13,8 +13,8 @@ class ConditionalDetectorTest {
     // Fixture: always returns DETECTED
     private static final Detector<String> ALWAYS_DETECTED = new Detector<>() {
         @Override public String name() { return "always-detected"; }
-        @Override public DetectedStatus detect(String target) {
-            return new DetectedStatus(name(), DETECTED);
+        @Override public DetectedStatus<String> detect(String target) {
+            return new DetectedStatus<>(name(), target, DETECTED);
         }
     };
 
@@ -42,15 +42,15 @@ class ConditionalDetectorTest {
             var result = conditional.detect("input");
 
             assertInstanceOf(DetectedStatus.class, result);
-            assertEquals(DETECTED, ((DetectedStatus) result).status());
+            assertEquals(DETECTED, ((DetectedStatus<?>) result).status());
         }
 
         @Test
         void detect_returns_the_exact_result_of_wrapped_detector() {
-            var expected = new DetectedScore("always-detected", new BigDecimal("0.75"));
+            var expected = new DetectedScore<>("always-detected", "input", new BigDecimal("0.75"));
             Detector<String> scorer = new Detector<>() {
                 @Override public String name() { return "always-detected"; }
-                @Override public DetectedScore detect(String target) { return expected; }
+                @Override public DetectedScore<String> detect(String target) { return expected; }
             };
 
             var conditional = ConditionalDetector.detector(scorer)
@@ -65,9 +65,9 @@ class ConditionalDetectorTest {
             String[] captured = {null};
             Detector<String> capturing = new Detector<>() {
                 @Override public String name() { return "capturing"; }
-                @Override public DetectedStatus detect(String target) {
+                @Override public DetectedStatus<String> detect(String target) {
                     captured[0] = target;
-                    return new DetectedStatus(name(), NOT_DETECTED);
+                    return new DetectedStatus<>(name(), target, NOT_DETECTED);
                 }
             };
 
@@ -91,7 +91,7 @@ class ConditionalDetectorTest {
             var result = conditional.detect("input");
 
             assertInstanceOf(DetectedStatus.class, result);
-            assertEquals(SKIPPED, ((DetectedStatus) result).status());
+            assertEquals(SKIPPED, ((DetectedStatus<?>) result).status());
         }
 
         @Test
@@ -100,7 +100,7 @@ class ConditionalDetectorTest {
                     .when(() -> false)
                     .build();
 
-            var result = (DetectedStatus) conditional.detect("input");
+            var result = (DetectedStatus<?>) conditional.detect("input");
 
             assertEquals("always-detected", result.detectorName());
         }
@@ -110,9 +110,9 @@ class ConditionalDetectorTest {
             int[] callCount = {0};
             Detector<String> counting = new Detector<>() {
                 @Override public String name() { return "counting"; }
-                @Override public DetectedStatus detect(String target) {
+                @Override public DetectedStatus<String> detect(String target) {
                     callCount[0]++;
-                    return new DetectedStatus(name(), DETECTED);
+                    return new DetectedStatus<>(name(), target, DETECTED);
                 }
             };
 
@@ -126,9 +126,76 @@ class ConditionalDetectorTest {
             // build() without when() — detector should always run
             var conditional = ConditionalDetector.detector(ALWAYS_DETECTED).build();
 
-            var result = (DetectedStatus) conditional.detect("input");
+            var result = (DetectedStatus<?>) conditional.detect("input");
 
             assertEquals(DETECTED, result.status());
+        }
+    }
+
+    // =========================================================================
+
+    @Nested
+    class WhenSkipped {
+
+        @Test
+        void custom_skip_result_is_returned_instead_of_default_skipped_status() {
+            var customResult = new DetectedStatus<>("always-detected", "input", NOT_DETECTED);
+
+            var conditional = ConditionalDetector.detector(ALWAYS_DETECTED)
+                    .when(() -> false)
+                    .whenSkipped(() -> customResult)
+                    .build();
+
+            assertSame(customResult, conditional.detect("input"));
+        }
+
+        @Test
+        void custom_skip_result_supplier_is_not_called_when_condition_is_true() {
+            boolean[] called = {false};
+
+            var conditional = ConditionalDetector.detector(ALWAYS_DETECTED)
+                    .when(() -> true)
+                    .whenSkipped(() -> { called[0] = true; return new DetectedStatus<>("always-detected", "input", NOT_DETECTED); })
+                    .build();
+
+            conditional.detect("input");
+
+            assertFalse(called[0]);
+        }
+
+        @Test
+        void custom_skip_result_can_return_not_detected_to_treat_skip_as_clean_signal() {
+            var conditional = ConditionalDetector.detector(ALWAYS_DETECTED)
+                    .when(() -> false)
+                    .whenSkipped(() -> new DetectedStatus<>("always-detected", "input", NOT_DETECTED))
+                    .build();
+
+            var result = (DetectedStatus<?>) conditional.detect("input");
+
+            assertEquals(NOT_DETECTED, result.status());
+        }
+
+        @Test
+        void custom_skip_result_can_return_a_detected_score() {
+            var skippedScore = new DetectedScore<>("always-detected", "input", java.math.BigDecimal.ZERO);
+
+            var conditional = ConditionalDetector.detector(ALWAYS_DETECTED)
+                    .when(() -> false)
+                    .whenSkipped(() -> skippedScore)
+                    .build();
+
+            assertSame(skippedScore, conditional.detect("input"));
+        }
+
+        @Test
+        void default_skipped_status_is_returned_when_whenSkipped_is_not_configured() {
+            var conditional = ConditionalDetector.detector(ALWAYS_DETECTED)
+                    .when(() -> false)
+                    .build();
+
+            var result = (DetectedStatus<?>) conditional.detect("input");
+
+            assertEquals(SKIPPED, result.status());
         }
     }
 
@@ -143,7 +210,7 @@ class ConditionalDetectorTest {
                     .when(() -> true).and(() -> true)
                     .build();
 
-            assertEquals(DETECTED, ((DetectedStatus) conditional.detect("x")).status());
+            assertEquals(DETECTED, ((DetectedStatus<?>) conditional.detect("x")).status());
         }
 
         @Test
@@ -152,7 +219,7 @@ class ConditionalDetectorTest {
                     .when(() -> false).and(() -> true)
                     .build();
 
-            assertEquals(SKIPPED, ((DetectedStatus) conditional.detect("x")).status());
+            assertEquals(SKIPPED, ((DetectedStatus<?>) conditional.detect("x")).status());
         }
 
         @Test
@@ -161,7 +228,7 @@ class ConditionalDetectorTest {
                     .when(() -> true).and(() -> false)
                     .build();
 
-            assertEquals(SKIPPED, ((DetectedStatus) conditional.detect("x")).status());
+            assertEquals(SKIPPED, ((DetectedStatus<?>) conditional.detect("x")).status());
         }
 
         @Test
@@ -184,7 +251,7 @@ class ConditionalDetectorTest {
                     .when(() -> true).or(() -> false)
                     .build();
 
-            assertEquals(DETECTED, ((DetectedStatus) conditional.detect("x")).status());
+            assertEquals(DETECTED, ((DetectedStatus<?>) conditional.detect("x")).status());
         }
 
         @Test
@@ -193,7 +260,7 @@ class ConditionalDetectorTest {
                     .when(() -> false).or(() -> true)
                     .build();
 
-            assertEquals(DETECTED, ((DetectedStatus) conditional.detect("x")).status());
+            assertEquals(DETECTED, ((DetectedStatus<?>) conditional.detect("x")).status());
         }
 
         @Test
@@ -202,7 +269,7 @@ class ConditionalDetectorTest {
                     .when(() -> false).or(() -> false)
                     .build();
 
-            assertEquals(SKIPPED, ((DetectedStatus) conditional.detect("x")).status());
+            assertEquals(SKIPPED, ((DetectedStatus<?>) conditional.detect("x")).status());
         }
 
         @Test
@@ -226,7 +293,7 @@ class ConditionalDetectorTest {
                     .when(() -> true).and(() -> false).or(() -> true)
                     .build();
 
-            assertEquals(DETECTED, ((DetectedStatus) conditional.detect("x")).status());
+            assertEquals(DETECTED, ((DetectedStatus<?>) conditional.detect("x")).status());
         }
     }
 }

@@ -38,7 +38,7 @@ class InterceptorTest {
     /** Blocks if any detection is DETECTED; otherwise proceeds. */
     private static final io.unconquerable.intercept.decide.Decider BLOCK_ON_DETECTED =
             detections -> detections.stream()
-                    .filter(d -> d instanceof DetectedStatus ds
+                    .filter(d -> d instanceof DetectedStatus<?> ds
                             && ds.status() == DetectedStatus.Status.DETECTED)
                     .findFirst()
                     .<Decided>map(_ -> decidedToBlock())
@@ -48,8 +48,8 @@ class InterceptorTest {
     private static final io.unconquerable.intercept.decide.Decider SCORE_DECIDER =
             detections -> {
                 BigDecimal total = detections.stream()
-                        .filter(d -> d instanceof DetectedScore)
-                        .map(d -> ((DetectedScore) d).score())
+                        .filter(d -> d instanceof DetectedScore<?>)
+                        .map(d -> ((DetectedScore<?>) d).score())
                         .reduce(BigDecimal.ZERO, BigDecimal::add);
 
                 if (total.compareTo(new BigDecimal("0.5")) > 0) return decidedToBlock();
@@ -136,9 +136,9 @@ class InterceptorTest {
 
             Detector<String> counting = new Detector<>() {
                 @Override public String name() { return "counter"; }
-                @Override public DetectedStatus detect(String target) {
+                @Override public DetectedStatus<String> detect(String target) {
                     callCount[0]++;
-                    return new DetectedStatus(name(), DetectedStatus.Status.NOT_DETECTED);
+                    return new DetectedStatus<>(name(), target, DetectedStatus.Status.NOT_DETECTED);
                 }
             };
 
@@ -243,7 +243,7 @@ class InterceptorTest {
                         assertEquals(1, detections.size());
                         assertInstanceOf(DetectedStatus.class, detections.getFirst());
                         assertEquals(DetectedStatus.Status.SKIPPED,
-                                ((DetectedStatus) detections.getFirst()).status());
+                                ((DetectedStatus<?>) detections.getFirst()).status());
                         return decidedToProceed();
                     })
                     .result();
@@ -419,8 +419,8 @@ class InterceptorTest {
             implements Detector<String> {
 
         @Override
-        public DetectedStatus detect(String target) {
-            return new DetectedStatus(name, status);
+        public DetectedStatus<String> detect(String target) {
+            return new DetectedStatus<>(name, target, status);
         }
     }
 
@@ -428,8 +428,8 @@ class InterceptorTest {
             implements Detector<String> {
 
         @Override
-        public DetectedScore detect(String target) {
-            return new DetectedScore(name, score);
+        public DetectedScore<String> detect(String target) {
+            return new DetectedScore<>(name, target, score);
         }
     }
 
@@ -437,9 +437,9 @@ class InterceptorTest {
             implements Detector<String> {
 
         @Override
-        public DetectedStatus detect(String target) {
+        public DetectedStatus<String> detect(String target) {
             order.add(name);
-            return new DetectedStatus(name, DetectedStatus.Status.NOT_DETECTED);
+            return new DetectedStatus<>(name, target, DetectedStatus.Status.NOT_DETECTED);
         }
     }
 }

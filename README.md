@@ -34,6 +34,7 @@ Optional<Response> response = Interceptor.interceptor()
   - [Running the Pipeline](#running-the-pipeline)
   - [Conditional Detectors](#conditional-detectors)
   - [Decision Detail](#decision-detail)
+  - [Forwarding Pipeline Results (Sender)](#forwarding-pipeline-results-sender)
 - [Modules](#modules)
 - [Building from Source](#building-from-source)
 - [License](#license)
@@ -48,6 +49,7 @@ Optional<Response> response = Interceptor.interceptor()
 - **Four verdict types** — `BLOCK`, `PROCEED`, `CHALLENGE`, and `DEFER` cover the full spectrum of fraud responses.
 - **Type-safe result handling** — fluent `onBlock` / `onProceed` / `onChallenge` / `onDefer` handlers return a typed `Optional<R>`; only the matching handler fires. Each verdict also has a `Runnable` overload for side-effect-only handling (logging, metrics, events) with no return value.
 - **Audit metadata** — attach structured `DecisionDetail` to any verdict for logging and compliance.
+- **Pipeline forwarding** — register a `Sender` to dispatch the full pipeline context — verdict, result, and all detection signals — to audit logs, message queues, or monitoring systems in one call.
 - **Zero framework coupling** — plain Java 25 with no mandatory runtime dependencies beyond Jakarta Annotations.
 
 ---
@@ -110,7 +112,7 @@ dependencies {
 
 ## Core Concepts
 
-The library is built around five types that work together in a linear pipeline.
+The library is built around six types that work together in a linear pipeline.
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -130,6 +132,8 @@ The library is built around five types that work together in a linear pipeline.
 │                                          ▼                  │
 │                                    Decision<R>              │
 │                           .onBlock / .onProceed / ...       │
+│                                          │                  │
+│                             .send(Sender) ─► audit / queue  │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -137,9 +141,10 @@ The library is built around five types that work together in a linear pipeline.
 |---|---|
 | `Interceptor` | Entry point; holds detector registrations and drives the pipeline |
 | `Detector<T>` | Analyses a single target value and returns a `Detected` result |
-| `Detected` | The output of one detector — either a `DetectedScore` or a `DetectedStatus` |
+| `Detected<T>` | The output of one detector — either a `DetectedScore` or a `DetectedStatus` |
 | `Decider` | Examines all `Detected` results and returns a `Decided` verdict |
 | `Decision<R>` | Maps each verdict type to a caller-supplied `Supplier<R>` or `Runnable` handler and returns the result |
+| `Sender<R>` | Receives the complete pipeline context — result, verdict, and all detections — for forwarding to external systems |
 
 ### Detection result types
 
@@ -176,9 +181,9 @@ public class IpReputationDetector implements Detector<String> {
     }
 
     @Override
-    public Detected detect(String ipAddress) {
+    public Detected<String> detect(String ipAddress) {
         BigDecimal score = service.riskScoreOf(ipAddress);
-        return new DetectedScore(name(), score);
+        return new DetectedScore<>(name(), ipAddress, score);
     }
 }
 ```
@@ -194,9 +199,9 @@ public class DeviceBlocklistDetector implements Detector<String> {
     }
 
     @Override
-    public Detected detect(String deviceId) {
+    public Detected<String> detect(String deviceId) {
         boolean blocked = blocklist.contains(deviceId);
-        return new DetectedStatus(name(), blocked
+        return new DetectedStatus<>(name(), deviceId, blocked
                 ? DetectedStatus.Status.DETECTED
                 : DetectedStatus.Status.NOT_DETECTED);
     }
@@ -229,12 +234,12 @@ public class TieredScoreDecider implements Decider {
     private static final BigDecimal CHALLENGE_THRESHOLD = new BigDecimal("0.40");
 
     @Override
-    public Decided decide(List<Detected> detections) {
+    public Decided decide(List<Detected<?>> detections) {
         // Hard block if any device is on the blocklist
         boolean deviceBlocked = detections.stream()
-            .filter(d -> d instanceof DetectedStatus ds
+            .filter(d -> d instanceof DetectedStatus<?> ds
                     && "device-blocklist".equals(ds.detectorName()))
-            .map(d -> (DetectedStatus) d)
+            .map(d -> (DetectedStatus<?>) d)
             .anyMatch(d -> d.status() == DetectedStatus.Status.DETECTED);
 
         if (deviceBlocked) {
@@ -243,8 +248,8 @@ public class TieredScoreDecider implements Decider {
 
         // Aggregate risk scores from remaining detectors
         BigDecimal totalScore = detections.stream()
-            .filter(d -> d instanceof DetectedScore)
-            .map(d -> ((DetectedScore) d).score())
+            .filter(d -> d instanceof DetectedScore<?>)
+            .map(d -> ((DetectedScore<?>) d).score())
             .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         if (totalScore.compareTo(BLOCK_THRESHOLD)     > 0) return Decided.decidedToBlock();
@@ -355,6 +360,46 @@ Access it in an outcome handler:
            .ifPresent(d -> auditLog.record(d.ruleId(), d.detectorName()));
     return Response.status(403).build();
 })
+```
+
+---
+
+### Forwarding Pipeline Results (Sender)
+
+After all outcome handlers have been registered, call `.send()` to dispatch the complete pipeline context — the handler result, the verdict, and every detection signal — to an external system in a single step. `Sender<R>` is a `@FunctionalInterface`, so it can be supplied as a lambda.
+
+```java
+Sender<ApiResponse> auditSender = (result, decided, detections) ->
+    auditLog.record(AuditEntry.builder()
+        .verdict(decided.type())
+        .detections(detections)
+        .response(result)
+        .build());
+```
+
+Wire it into the pipeline after the outcome handlers:
+
+```java
+Optional<ApiResponse> response = Interceptor.interceptor()
+    .detect(request.getIpAddress(), ipDetector)
+    .detect(request.getDeviceId(),  deviceDetector)
+    .decide(decider)
+    .onBlock(()     -> ApiResponse.forbidden("Request blocked"))
+    .onChallenge(() -> ApiResponse.challenge("Verification required"))
+    .onProceed(()   -> orderService.submit(request))
+    .send(auditSender)   // receives result + verdict + all detections
+    .result();
+```
+
+`send()` is called regardless of which verdict fired, making it the right place for unconditional audit logging, metrics emission, or event publishing. The `result` parameter passed to the `Sender` is the value set by the matching handler, or `null` if a `Runnable` handler was used or no handler was registered.
+
+You can register multiple senders by chaining `.send()` calls:
+
+```java
+.send(auditSender)
+.send(metricsSender)
+.send(eventBusSender)
+.result();
 ```
 
 ---

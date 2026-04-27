@@ -9,8 +9,8 @@ class DetectorsTest {
 
     private static final Detector<String> STUB = new Detector<>() {
         @Override public String name() { return "stub"; }
-        @Override public DetectedStatus detect(String target) {
-            return new DetectedStatus(name(), DETECTED);
+        @Override public DetectedStatus<String> detect(String target) {
+            return new DetectedStatus<>(name(), target, DETECTED);
         }
     };
 
@@ -24,7 +24,7 @@ class DetectorsTest {
     void built_detector_without_condition_always_runs() {
         // No .when() call — default condition is always true
         var detector = Detectors.detector(STUB).build();
-        var result = (DetectedStatus) detector.detect("input");
+        var result = (DetectedStatus<?>) detector.detect("input");
         assertEquals(DETECTED, result.status());
     }
 
@@ -37,14 +37,14 @@ class DetectorsTest {
     @Test
     void built_detector_skips_when_condition_is_false() {
         var detector = Detectors.detector(STUB).when(() -> false).build();
-        var result = (DetectedStatus) detector.detect("input");
+        var result = (DetectedStatus<?>) detector.detect("input");
         assertEquals(SKIPPED, result.status());
     }
 
     @Test
     void built_detector_runs_when_condition_is_true() {
         var detector = Detectors.detector(STUB).when(() -> true).build();
-        var result = (DetectedStatus) detector.detect("input");
+        var result = (DetectedStatus<?>) detector.detect("input");
         assertEquals(DETECTED, result.status());
     }
 }

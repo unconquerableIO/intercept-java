@@ -14,18 +14,18 @@ import java.math.BigDecimal;
  *
  * <p>Example usage inside a custom {@link Detector}:
  * <pre>{@code
- * public Detected detect(String ipAddress) {
+ * public Detected<String> detect(String ipAddress) {
  *     BigDecimal riskScore = reputationService.scoreOf(ipAddress);
- *     return new DetectedScore(name(), riskScore);
+ *     return new DetectedScore<>(name(), ipAddress, riskScore);
  * }
  * }</pre>
  *
  * <p>Example usage inside a custom {@link io.unconquerable.intercept.decide.Decider}:
  * <pre>{@code
- * public Decided decide(List<Detected> detections) {
+ * public Decided decide(List<Detected<?>> detections) {
  *     return detections.stream()
- *         .filter(d -> d instanceof DetectedScore)
- *         .map(d -> (DetectedScore) d)
+ *         .filter(d -> d instanceof DetectedScore<?>)
+ *         .map(d -> (DetectedScore<?>) d)
  *         .filter(d -> d.detectorName().equals("ip-reputation"))
  *         .findFirst()
  *         .map(d -> d.score().compareTo(RISK_THRESHOLD) > 0
@@ -35,13 +35,19 @@ import java.math.BigDecimal;
  * }
  * }</pre>
  *
+ * @param <T>          the type of the target value that was analysed
  * @param detectorName the name of the {@link Detector} that produced this result; must not be
  *                     {@code null}
+ * @param target       the value that was submitted to the detector for analysis; must not be
+ *                     {@code null}
  * @param score        the numeric risk score; higher values conventionally indicate higher risk,
- *                     but the scale is defined by the producing detector; must not be {@code null}
+ *                     but the scale and range are defined by the producing detector; must not be
+ *                     {@code null}
  * @author Rizwan Idrees
  * @see DetectedStatus
  * @see Detected
  */
-public record DetectedScore(@Nonnull String detectorName, @Nonnull BigDecimal score) implements Detected {
+public record DetectedScore<T>(@Nonnull String detectorName,
+                               @Nonnull T target,
+                               @Nonnull BigDecimal score) implements Detected<T>{
 }
