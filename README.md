@@ -71,7 +71,7 @@ Import the Bill of Materials to align all `interceptJ` dependency versions autom
 
 ```kotlin
 dependencies {
-    implementation(platform("io.unconquerable:interceptJ-bom:0.0.1-SNAPSHOT"))
+    implementation(platform("io.unconquerable:interceptJ-bom:0.0.1"))
     implementation("io.unconquerable:interceptJ-core")
 }
 ```
@@ -80,7 +80,7 @@ dependencies {
 
 ```groovy
 dependencies {
-    implementation platform("io.unconquerable:interceptJ-bom:0.0.1-SNAPSHOT")
+    implementation platform("io.unconquerable:interceptJ-bom:0.0.1")
     implementation "io.unconquerable:interceptJ-core"
 }
 ```
@@ -93,7 +93,7 @@ dependencies {
         <dependency>
             <groupId>io.unconquerable</groupId>
             <artifactId>interceptJ-bom</artifactId>
-            <version>0.0.1-SNAPSHOT</version>
+            <version>0.0.1</version>
             <type>pom</type>
             <scope>import</scope>
         </dependency>
