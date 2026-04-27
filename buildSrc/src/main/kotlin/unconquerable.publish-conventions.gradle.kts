@@ -2,6 +2,7 @@ import com.vanniktech.maven.publish.SonatypeHost
 
 plugins {
     id("com.vanniktech.maven.publish")
+    signing
 }
 
 plugins.withId("java") {
@@ -9,6 +10,10 @@ plugins.withId("java") {
         withJavadocJar()
         withSourcesJar()
     }
+}
+
+extensions.configure<SigningExtension> {
+    useGpgCmd()
 }
 
 mavenPublishing {
