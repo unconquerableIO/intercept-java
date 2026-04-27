@@ -1,13 +1,18 @@
 package io.unconquerable.intercept.decide;
 
+import io.unconquerable.intercept.detect.DetectedStatus;
+import io.unconquerable.intercept.send.Sender;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
 import java.util.Optional;
 
 import static io.unconquerable.intercept.decide.Decided.*;
+import static io.unconquerable.intercept.detect.DetectedStatus.Status.NOT_DETECTED;
 import static org.junit.jupiter.api.Assertions.*;
 
+@SuppressWarnings("unused")
 class DecisionTest {
 
     // =========================================================================
@@ -231,6 +236,224 @@ class DecisionTest {
             assertSame(decision, decision.onProceed(() -> {}));
             assertSame(decision, decision.onChallenge(() -> {}));
             assertSame(decision, decision.onDefer(() -> {}));
+        }
+    }
+
+    // =========================================================================
+
+    @Nested
+    class SenderDispatching {
+
+        // Helper: a Sender that records the calls it receives
+        private record Capture<R>(boolean[] fired, Object[] result, Decided[] decided) {
+            static <R> Capture<R> empty() {
+                return new Capture<>(new boolean[]{false}, new Object[]{null}, new Decided[]{null});
+            }
+
+            Sender<R> sender() {
+                return (result, decided, detections) -> {
+                    fired[0] = true;
+                    this.result[0] = result;
+                    this.decided[0] = decided;
+                };
+            }
+        }
+
+        // --- send (unconditional) ---
+
+        @Test
+        void send_fires_for_every_verdict() {
+            for (Decided verdict : List.of(decidedToBlock(), decidedToProceed(), decidedToChallenge(), decidedToDefer())) {
+                var capture = Capture.<String>empty();
+                new Decision<String>(verdict).send(capture.sender()).result();
+                assertTrue(capture.fired[0], "send should fire for " + verdict.type());
+            }
+        }
+
+        @Test
+        void send_receives_the_handler_result() {
+            var capture = Capture.<String>empty();
+            new Decision<String>(decidedToBlock())
+                    .onBlock(() -> "blocked")
+                    .send(capture.sender())
+                    .result();
+            assertEquals("blocked", capture.result[0]);
+        }
+
+        @Test
+        void send_receives_null_result_when_runnable_handler_fires() {
+            var capture = Capture.<String>empty();
+            new Decision<String>(decidedToBlock())
+                    .onBlock(() -> {})
+                    .send(capture.sender())
+                    .result();
+            assertNull(capture.result[0]);
+        }
+
+        @Test
+        void send_receives_the_verdict() {
+            var capture = Capture.<String>empty();
+            new Decision<String>(decidedToBlock()).send(capture.sender()).result();
+            assertTrue(capture.decided[0].toBlock());
+        }
+
+        @Test
+        void send_passes_detections_to_sender() {
+            var detection = new DetectedStatus<>("stub", "ip", NOT_DETECTED);
+            var detections = List.<io.unconquerable.intercept.detect.Detected<?>>of(detection);
+            boolean[] received = {false};
+
+            new Decision<String>(decidedToProceed(), detections)
+                    .send((result, decided, d) -> received[0] = d.contains(detection))
+                    .result();
+
+            assertTrue(received[0]);
+        }
+
+        @Test
+        void send_can_be_chained_multiple_times() {
+            boolean[] first  = {false};
+            boolean[] second = {false};
+
+            new Decision<String>(decidedToBlock())
+                    .send((r, d, det) -> first[0]  = true)
+                    .send((r, d, det) -> second[0] = true)
+                    .result();
+
+            assertTrue(first[0]);
+            assertTrue(second[0]);
+        }
+
+        @Test
+        void send_returns_same_decision_instance() {
+            var decision = new Decision<String>(decidedToBlock());
+            assertSame(decision, decision.send((r, d, det) -> {}));
+        }
+
+        // --- sendOnBlock ---
+
+        @Test
+        void sendOnBlock_fires_only_for_block_verdict() {
+            var capture = Capture.<String>empty();
+            new Decision<String>(decidedToBlock()).sendOnBlock(capture.sender()).result();
+            assertTrue(capture.fired[0]);
+        }
+
+        @Test
+        void sendOnBlock_does_not_fire_for_non_block_verdicts() {
+            for (Decided verdict : List.of(decidedToProceed(), decidedToChallenge(), decidedToDefer())) {
+                var capture = Capture.<String>empty();
+                new Decision<String>(verdict).sendOnBlock(capture.sender()).result();
+                assertFalse(capture.fired[0], "sendOnBlock should not fire for " + verdict.type());
+            }
+        }
+
+        // --- sendOnProceed ---
+
+        @Test
+        void sendOnProceed_fires_only_for_proceed_verdict() {
+            var capture = Capture.<String>empty();
+            new Decision<String>(decidedToProceed()).sendOnProceed(capture.sender()).result();
+            assertTrue(capture.fired[0]);
+        }
+
+        @Test
+        void sendOnProceed_does_not_fire_for_non_proceed_verdicts() {
+            for (Decided verdict : List.of(decidedToBlock(), decidedToChallenge(), decidedToDefer())) {
+                var capture = Capture.<String>empty();
+                new Decision<String>(verdict).sendOnProceed(capture.sender()).result();
+                assertFalse(capture.fired[0], "sendOnProceed should not fire for " + verdict.type());
+            }
+        }
+
+        // --- sendOnChallenge ---
+
+        @Test
+        void sendOnChallenge_fires_only_for_challenge_verdict() {
+            var capture = Capture.<String>empty();
+            new Decision<String>(decidedToChallenge()).sendOnChallenge(capture.sender()).result();
+            assertTrue(capture.fired[0]);
+        }
+
+        @Test
+        void sendOnChallenge_does_not_fire_for_non_challenge_verdicts() {
+            for (Decided verdict : List.of(decidedToBlock(), decidedToProceed(), decidedToDefer())) {
+                var capture = Capture.<String>empty();
+                new Decision<String>(verdict).sendOnChallenge(capture.sender()).result();
+                assertFalse(capture.fired[0], "sendOnChallenge should not fire for " + verdict.type());
+            }
+        }
+
+        // --- sendOnDefer ---
+
+        @Test
+        void sendOnDefer_fires_only_for_defer_verdict() {
+            var capture = Capture.<String>empty();
+            new Decision<String>(decidedToDefer()).sendOnDefer(capture.sender()).result();
+            assertTrue(capture.fired[0]);
+        }
+
+        @Test
+        void sendOnDefer_does_not_fire_for_non_defer_verdicts() {
+            for (Decided verdict : List.of(decidedToBlock(), decidedToProceed(), decidedToChallenge())) {
+                var capture = Capture.<String>empty();
+                new Decision<String>(verdict).sendOnDefer(capture.sender()).result();
+                assertFalse(capture.fired[0], "sendOnDefer should not fire for " + verdict.type());
+            }
+        }
+
+        // --- sendUnlessBlocked ---
+
+        @Test
+        void sendUnlessBlocked_fires_for_proceed_challenge_and_defer() {
+            for (Decided verdict : List.of(decidedToProceed(), decidedToChallenge(), decidedToDefer())) {
+                var capture = Capture.<String>empty();
+                new Decision<String>(verdict).sendUnlessBlocked(capture.sender()).result();
+                assertTrue(capture.fired[0], "sendUnlessBlocked should fire for " + verdict.type());
+            }
+        }
+
+        @Test
+        void sendUnlessBlocked_does_not_fire_for_block_verdict() {
+            var capture = Capture.<String>empty();
+            new Decision<String>(decidedToBlock()).sendUnlessBlocked(capture.sender()).result();
+            assertFalse(capture.fired[0]);
+        }
+
+        // --- sendUnlessProceed ---
+
+        @Test
+        void sendUnlessProceed_fires_for_block_challenge_and_defer() {
+            for (Decided verdict : List.of(decidedToBlock(), decidedToChallenge(), decidedToDefer())) {
+                var capture = Capture.<String>empty();
+                new Decision<String>(verdict).sendUnlessProceed(capture.sender()).result();
+                assertTrue(capture.fired[0], "sendUnlessProceed should fire for " + verdict.type());
+            }
+        }
+
+        @Test
+        void sendUnlessProceed_does_not_fire_for_proceed_verdict() {
+            var capture = Capture.<String>empty();
+            new Decision<String>(decidedToProceed()).sendUnlessProceed(capture.sender()).result();
+            assertFalse(capture.fired[0]);
+        }
+
+        // --- sendUnlessDefer ---
+
+        @Test
+        void sendUnlessDefer_fires_for_block_proceed_and_challenge() {
+            for (Decided verdict : List.of(decidedToBlock(), decidedToProceed(), decidedToChallenge())) {
+                var capture = Capture.<String>empty();
+                new Decision<String>(verdict).sendUnlessDefer(capture.sender()).result();
+                assertTrue(capture.fired[0], "sendUnlessDefer should fire for " + verdict.type());
+            }
+        }
+
+        @Test
+        void sendUnlessDefer_does_not_fire_for_defer_verdict() {
+            var capture = Capture.<String>empty();
+            new Decision<String>(decidedToDefer()).sendUnlessDefer(capture.sender()).result();
+            assertFalse(capture.fired[0]);
         }
     }
 

@@ -63,6 +63,21 @@ public class Decision<R> {
     }
 
 
+    /**
+     * Constructs a {@code Decision} wrapping the given verdict and the full list of detection
+     * results produced during the pipeline execution.
+     *
+     * <p>The {@code detections} list is forwarded to any {@link Sender} registered via
+     * {@link #send(Sender)} and its conditional variants, giving senders access to the raw
+     * per-detector signals alongside the final verdict.
+     *
+     * <p>This constructor is called internally by
+     * {@link io.unconquerable.intercept.Interceptor#decide(Decider)}.
+     *
+     * @param decided    the verdict produced by the {@link Decider}; must not be {@code null}
+     * @param detections the ordered list of {@link Detected} results from all registered
+     *                   detectors; must not be {@code null}
+     */
     public Decision(@Nonnull Decided decided, @Nonnull List<Detected<?>> detections) {
         this.decided = decided;
         this.detections = detections;
@@ -225,8 +240,152 @@ public class Decision<R> {
         return this;
     }
 
+    /**
+     * Dispatches the complete pipeline context to the given {@link Sender}, unconditionally.
+     *
+     * <p>The sender receives the handler result (which may be {@code null} if a {@link Runnable}
+     * handler was used or no handler fired), the {@link Decided} verdict, and the full list of
+     * {@link io.unconquerable.intercept.detect.Detected} signals collected during detection.
+     * Multiple senders may be chained by calling this method more than once.
+     *
+     * <p>This is the right choice for unconditional concerns such as audit logging, metrics
+     * emission, or event publishing that must fire regardless of the verdict.
+     *
+     * @param sender the recipient that will process the pipeline outcome; must not be {@code null}
+     * @return this {@code Decision} for fluent chaining
+     * @see #sendOnBlock(Sender)
+     * @see #sendOnProceed(Sender)
+     * @see #sendOnChallenge(Sender)
+     * @see #sendOnDefer(Sender)
+     */
     public Decision<R> send(Sender<R> sender) {
         sender.send(result, decided, detections);
+        return this;
+    }
+
+    /**
+     * Dispatches the pipeline context to the given {@link Sender} only when the verdict is
+     * {@link Decided.Type#BLOCK}.
+     *
+     * <p>Use this when a downstream system — such as a fraud alert queue or a block-specific
+     * audit trail — should only receive events for blocked requests.
+     *
+     * @param sender the recipient that will process the pipeline outcome on a block verdict;
+     *               must not be {@code null}
+     * @return this {@code Decision} for fluent chaining
+     */
+    public Decision<R> sendOnBlock(Sender<R> sender) {
+        if (decided.toBlock()) {
+            sender.send(result, decided, detections);
+        }
+        return this;
+    }
+
+    /**
+     * Dispatches the pipeline context to the given {@link Sender} only when the verdict is
+     * {@link Decided.Type#PROCEED}.
+     *
+     * <p>Use this when a downstream system should only receive events for requests that were
+     * allowed to proceed — for example, a success-path analytics sink.
+     *
+     * @param sender the recipient that will process the pipeline outcome on a proceed verdict;
+     *               must not be {@code null}
+     * @return this {@code Decision} for fluent chaining
+     */
+    public Decision<R> sendOnProceed(Sender<R> sender) {
+        if (decided.toProceed()) {
+            sender.send(result, decided, detections);
+        }
+        return this;
+    }
+
+    /**
+     * Dispatches the pipeline context to the given {@link Sender} only when the verdict is
+     * {@link Decided.Type#CHALLENGE}.
+     *
+     * <p>Use this when a downstream system should only receive events for requests that require
+     * additional verification — for example, a CAPTCHA orchestration service.
+     *
+     * @param sender the recipient that will process the pipeline outcome on a challenge verdict;
+     *               must not be {@code null}
+     * @return this {@code Decision} for fluent chaining
+     */
+    public Decision<R> sendOnChallenge(Sender<R> sender) {
+        if (decided.toChallenge()) {
+            sender.send(result, decided, detections);
+        }
+        return this;
+    }
+
+    /**
+     * Dispatches the pipeline context to the given {@link Sender} only when the verdict is
+     * {@link Decided.Type#DEFER}.
+     *
+     * <p>Use this when a downstream system should only receive events for requests that have been
+     * sent for asynchronous review — for example, a manual review queue.
+     *
+     * @param sender the recipient that will process the pipeline outcome on a defer verdict;
+     *               must not be {@code null}
+     * @return this {@code Decision} for fluent chaining
+     */
+    public Decision<R> sendOnDefer(Sender<R> sender) {
+        if (decided.toDefer()) {
+            sender.send(result, decided, detections);
+        }
+        return this;
+    }
+
+    /**
+     * Dispatches the pipeline context to the given {@link Sender} for every verdict
+     * <em>except</em> {@link Decided.Type#BLOCK}.
+     *
+     * <p>Use this when a downstream system should receive all non-blocked outcomes — for example,
+     * a downstream service that should only be notified when a request is not outright rejected.
+     *
+     * @param sender the recipient that will process the pipeline outcome unless the verdict is
+     *               BLOCK; must not be {@code null}
+     * @return this {@code Decision} for fluent chaining
+     */
+    public Decision<R> sendUnlessBlocked(Sender<R> sender) {
+        if (!decided.toBlock()) {
+            sender.send(result, decided, detections);
+        }
+        return this;
+    }
+
+    /**
+     * Dispatches the pipeline context to the given {@link Sender} for every verdict
+     * <em>except</em> {@link Decided.Type#PROCEED}.
+     *
+     * <p>Use this when a downstream system should only be notified about non-clean outcomes —
+     * for example, an anomaly tracker that is only interested in blocks, challenges, and deferrals.
+     *
+     * @param sender the recipient that will process the pipeline outcome unless the verdict is
+     *               PROCEED; must not be {@code null}
+     * @return this {@code Decision} for fluent chaining
+     */
+    public Decision<R> sendUnlessProceed(Sender<R> sender) {
+        if (!decided.toProceed()) {
+            sender.send(result, decided, detections);
+        }
+        return this;
+    }
+
+    /**
+     * Dispatches the pipeline context to the given {@link Sender} for every verdict
+     * <em>except</em> {@link Decided.Type#DEFER}.
+     *
+     * <p>Use this when a downstream system should receive all immediately-resolved outcomes —
+     * BLOCK, PROCEED, and CHALLENGE — but not requests that are still pending asynchronous review.
+     *
+     * @param sender the recipient that will process the pipeline outcome unless the verdict is
+     *               DEFER; must not be {@code null}
+     * @return this {@code Decision} for fluent chaining
+     */
+    public Decision<R> sendUnlessDefer(Sender<R> sender) {
+        if (!decided.toDefer()) {
+            sender.send(result, decided, detections);
+        }
         return this;
     }
 
