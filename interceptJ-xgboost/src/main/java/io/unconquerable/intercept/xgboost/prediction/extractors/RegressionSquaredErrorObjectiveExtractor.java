@@ -7,13 +7,13 @@ import jakarta.annotation.Nonnull;
 
 import java.util.Arrays;
 
-
 /**
- * Objective binary:logitraw
- * XGBoost outputs raw log-odds — sigmoid normalization is applied
- * via the injected Normalizer to recover a probability in [0,1].
+ * Objective reg:squarederror
+ * XGBoost outputs a raw continuous value in the same unit as the training labels.
+ * The injected Normalizer scales the value if needed (e.g. min-max),
+ * or passthrough if the raw value is meaningful as-is.
  */
-public record BinaryLogitrawObjectiveExtractor(Normalizer<Float, Double> normalizer)
+public record RegressionSquaredErrorObjectiveExtractor(Normalizer<Float, Double> normalizer)
         implements PredictionsExtractor<Double, DefaultPrediction<Double>> {
 
     @Override
@@ -23,4 +23,3 @@ public record BinaryLogitrawObjectiveExtractor(Normalizer<Float, Double> normali
                 .toList());
     }
 }
-

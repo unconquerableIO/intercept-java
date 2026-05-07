@@ -7,13 +7,14 @@ import jakarta.annotation.Nonnull;
 
 import java.util.Arrays;
 
-
 /**
- * Objective binary:logitraw
- * XGBoost outputs raw log-odds — sigmoid normalization is applied
- * via the injected Normalizer to recover a probability in [0,1].
+ * Objective reg:logistic
+ * XGBoost outputs raw log-odds via the logit link function.
+ * The injected Normalizer (sigmoid) transforms the log-odds to [0,1].
+ * Result is a probability — semantically equivalent to binary:logitraw
+ * but produced by a regression model.
  */
-public record BinaryLogitrawObjectiveExtractor(Normalizer<Float, Double> normalizer)
+public record RegressionLogisticObjectiveExtractor(Normalizer<Float, Double> normalizer)
         implements PredictionsExtractor<Double, DefaultPrediction<Double>> {
 
     @Override
@@ -23,4 +24,3 @@ public record BinaryLogitrawObjectiveExtractor(Normalizer<Float, Double> normali
                 .toList());
     }
 }
-
