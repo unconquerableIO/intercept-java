@@ -8,13 +8,28 @@ import jakarta.annotation.Nonnull;
 import java.util.stream.IntStream;
 
 /**
- * Objective rank:pairwise
- * XGBoost outputs ranking scores that are only meaningful relative to
- * each other within a single inference batch.
+ * A {@link PredictionsExtractor} for XGBoost ranking objectives (e.g. {@code rank:pairwise},
+ * {@code rank:ndcg}, {@code rank:map}).
+ *
+ * <p>XGBoost outputs relevance scores that are only meaningful relative to each other within
+ * the same inference batch.  This extractor flattens the per-row scores into a single array,
+ * delegates to the injected {@link Normalizer} (typically a
+ * {@link io.unconquerable.intercept.xgboost.normalizer.RankingNormalizer}) to rescale the
+ * entire batch to {@code [0, 1]}, then wraps each normalised score in a {@code DefaultPrediction}.
+ *
+ * @param normalizer the normaliser applied across the full batch of raw ranking scores
+ * @author Rizwan Idrees
  */
 public record RankingObjectiveExtractor(
         Normalizer<float[], double[]> normalizer) implements PredictionsExtractor<Double, DefaultPrediction<Double>> {
 
+    /**
+     * Extracts and batch-normalises predictions from a ranking objective raw output matrix.
+     *
+     * @param rawResult the raw score matrix; each row contains exactly one ranking score
+     * @return a {@link Predictions} collection with each score rescaled to {@code [0, 1]}
+     *         relative to the batch min/max
+     */
     @Override
     public Predictions<Double, DefaultPrediction<Double>> extract(@Nonnull float[][] rawResult) {
         float[] flat = new float[rawResult.length];

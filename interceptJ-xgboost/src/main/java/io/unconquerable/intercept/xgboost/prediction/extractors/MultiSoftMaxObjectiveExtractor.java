@@ -7,13 +7,26 @@ import jakarta.annotation.Nonnull;
 import java.util.Arrays;
 
 /**
- * multi:softmax objective
+ * A {@link PredictionsExtractor} for the XGBoost {@code multi:softmax} objective.
  *
- * @param targetClassIndex
+ * <p>XGBoost outputs a single integer class label per sample for this objective.  Each
+ * row's label is compared against {@link #targetClassIndex}: a match yields {@code 1},
+ * a non-match yields {@code 0}, producing a binary indicator suitable for downstream
+ * threshold-based decision logic.
+ *
+ * @param targetClassIndex the class label to treat as a positive match
+ * @author Rizwan Idrees
  */
 public record MultiSoftMaxObjectiveExtractor(int targetClassIndex)
         implements PredictionsExtractor<Integer, DefaultPrediction<Integer>> {
 
+    /**
+     * Extracts predictions from a {@code multi:softmax} raw output matrix.
+     *
+     * @param rawResult the raw score matrix; each row contains exactly one integer class label
+     * @return a {@link Predictions} collection with {@code 1} for rows matching
+     *         {@link #targetClassIndex} and {@code 0} for all others
+     */
     @Override
     public Predictions<Integer, DefaultPrediction<Integer>> extract(@Nonnull float[][] rawResult) {
         return new Predictions<>(Arrays.stream(rawResult)

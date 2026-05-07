@@ -16,7 +16,7 @@ public class Predictor<T> {
     private final XGBoostPredictor model;
     private final T type;
     private Function<T, DMatrix> featureExtractor;
-    private Either<? extends Prediction<?>, Error> result;
+    private Either<? extends Prediction<float[][]>, Error> result;
 
     private Predictor(XGBoostPredictor model, T type) {
         this.model = model;

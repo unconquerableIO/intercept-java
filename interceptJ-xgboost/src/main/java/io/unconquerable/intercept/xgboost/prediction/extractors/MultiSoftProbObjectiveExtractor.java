@@ -7,15 +7,25 @@ import jakarta.annotation.Nonnull;
 import java.util.Arrays;
 
 /**
- * Objective multi:softprob
- * XGBoost applies softmax internally — each row contains one probability
- * per class, summing to 1.0. Extracts the probability for the target class.
+ * A {@link PredictionsExtractor} for the XGBoost {@code multi:softprob} objective.
  *
- * @param targetClassIndex index of the class to extract probability for
+ * <p>XGBoost applies the softmax function internally for this objective, so each row
+ * contains one probability per class, summing to {@code 1.0}.  This extractor reads the
+ * probability at {@link #targetClassIndex} from each row, yielding the model's confidence
+ * that each sample belongs to the target class.
+ *
+ * @param targetClassIndex zero-based index of the class whose probability is extracted
+ * @author Rizwan Idrees
  */
 public record MultiSoftProbObjectiveExtractor(
         int targetClassIndex) implements PredictionsExtractor<Double, DefaultPrediction<Double>> {
 
+    /**
+     * Extracts the target-class probability from a {@code multi:softprob} raw output matrix.
+     *
+     * @param rawResult the raw score matrix; each row contains one probability per class, summing to {@code 1.0}
+     * @return a {@link Predictions} collection with the {@link #targetClassIndex} probability per input row
+     */
     @Override
     public Predictions<Double, DefaultPrediction<Double>> extract(@Nonnull float[][] rawResult) {
         return new Predictions<>(Arrays.stream(rawResult)
