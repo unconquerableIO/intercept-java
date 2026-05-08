@@ -1,4 +1,4 @@
-package io.unconquerable.intercept.xgboost.prediction.extractors;
+package io.unconquerable.intercept.xgboost.prediction.decoder;
 
 import io.unconquerable.intercept.xgboost.prediction.DefaultPrediction;
 import io.unconquerable.intercept.xgboost.prediction.Predictions;
@@ -8,7 +8,7 @@ import java.util.Arrays;
 import java.util.List;
 
 /**
- * A {@link PredictionsExtractor} for the XGBoost {@code binary:logistic} objective.
+ * A {@link PredictionsDecoder} for the XGBoost {@code binary:logistic} objective.
  *
  * <p>XGBoost applies the logistic (sigmoid) function internally for this objective, so each
  * row in the raw result already contains a single probability value in {@code [0, 1]}.
@@ -16,16 +16,16 @@ import java.util.List;
  *
  * @author Rizwan Idrees
  */
-public record BinaryLogisticObjectiveExtractor() implements PredictionsExtractor<Double, DefaultPrediction<Double>> {
+public record BinaryLogisticObjectiveDecoder() implements PredictionsDecoder<Double, DefaultPrediction<Double>> {
 
     /**
-     * Extracts predictions from a {@code binary:logistic} raw output matrix.
+     * Decodes predictions from a {@code binary:logistic} raw output matrix.
      *
      * @param rawResult the raw score matrix; each row contains exactly one probability in {@code [0, 1]}
      * @return a {@link Predictions} collection with one {@code Double} probability per input row
      */
     @Override
-    public Predictions<Double, DefaultPrediction<Double>> extract(@Nonnull float[][] rawResult) {
+    public Predictions<Double, DefaultPrediction<Double>> decode(@Nonnull float[][] rawResult) {
         final List<DefaultPrediction<Double>> list = Arrays.stream(rawResult)
                 .map(row -> new DefaultPrediction<>((double) row[0]))
                 .toList();

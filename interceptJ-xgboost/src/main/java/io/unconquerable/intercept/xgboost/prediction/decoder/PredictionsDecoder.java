@@ -1,4 +1,4 @@
-package io.unconquerable.intercept.xgboost.prediction.extractors;
+package io.unconquerable.intercept.xgboost.prediction.decoder;
 
 import io.unconquerable.intercept.xgboost.prediction.Prediction;
 import io.unconquerable.intercept.xgboost.prediction.Predictions;
@@ -19,16 +19,17 @@ import ml.dmlc.xgboost4j.java.DMatrix;
  * @param <P> the concrete {@link Prediction} wrapper type
  * @author Rizwan Idrees
  */
-public interface PredictionsExtractor<T, P extends Prediction<T>> {
+@FunctionalInterface
+public interface PredictionsDecoder<T, P extends Prediction<T>> {
 
     /**
-     * Extracts and normalizes predictions from the raw XGBoost output matrix.
+     * Decodes and normalizes predictions from the raw XGBoost output matrix.
      *
      * @param rawResult the raw score matrix returned by {@link ml.dmlc.xgboost4j.java.Booster#predict(DMatrix)};
      *                  each row corresponds to one sample; never {@code null}
      * @return a {@link Predictions} collection containing one prediction per input row;
      *         never {@code null}
      */
-    Predictions<T, P> extract(@Nonnull float[][] rawResult);
+    Predictions<T, P> decode(@Nonnull float[][] rawResult);
 
 }

@@ -1,4 +1,4 @@
-package io.unconquerable.intercept.xgboost.prediction.extractors;
+package io.unconquerable.intercept.xgboost.prediction.decoder;
 
 import io.unconquerable.intercept.xgboost.prediction.DefaultPrediction;
 import io.unconquerable.intercept.xgboost.prediction.Predictions;
@@ -7,7 +7,7 @@ import jakarta.annotation.Nonnull;
 import java.util.Arrays;
 
 /**
- * A {@link PredictionsExtractor} for the XGBoost {@code multi:softmax} objective.
+ * A {@link PredictionsDecoder} for the XGBoost {@code multi:softmax} objective.
  *
  * <p>XGBoost outputs a single integer class label per sample for this objective.  Each
  * row's label is compared against {@link #targetClassIndex}: a match yields {@code 1},
@@ -17,18 +17,18 @@ import java.util.Arrays;
  * @param targetClassIndex the class label to treat as a positive match
  * @author Rizwan Idrees
  */
-public record MultiSoftMaxObjectiveExtractor(int targetClassIndex)
-        implements PredictionsExtractor<Integer, DefaultPrediction<Integer>> {
+public record MultiSoftMaxObjectiveDecoder(int targetClassIndex)
+        implements PredictionsDecoder<Integer, DefaultPrediction<Integer>> {
 
     /**
-     * Extracts predictions from a {@code multi:softmax} raw output matrix.
+     * Decodes predictions from a {@code multi:softmax} raw output matrix.
      *
      * @param rawResult the raw score matrix; each row contains exactly one integer class label
      * @return a {@link Predictions} collection with {@code 1} for rows matching
      *         {@link #targetClassIndex} and {@code 0} for all others
      */
     @Override
-    public Predictions<Integer, DefaultPrediction<Integer>> extract(@Nonnull float[][] rawResult) {
+    public Predictions<Integer, DefaultPrediction<Integer>> decode(@Nonnull float[][] rawResult) {
         return new Predictions<>(Arrays.stream(rawResult)
                 .map(row ->
                         new DefaultPrediction<>((int) row[0] == targetClassIndex ? 1 : 0))

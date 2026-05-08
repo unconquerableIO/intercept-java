@@ -6,8 +6,8 @@ import jakarta.annotation.Nullable;
 /**
  * The sole {@link Error} implementation, carrying a message and an optional root cause.
  *
- * <p>Returned as the right side of an
- * {@link io.unconquerable.intercept.functional.Either Either&lt;? extends Prediction, Error&gt;}
+ * <p>Returned inside a
+ * {@link io.unconquerable.intercept.xgboost.prediction.Outcome.Failure}
  * when {@link io.unconquerable.intercept.xgboost.predictor.XGBoostPredictor#predict} fails.
  * Use the factory methods to construct instances:
  * <ul>

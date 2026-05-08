@@ -9,28 +9,24 @@
  *       loading a {@link ml.dmlc.xgboost4j.java.Booster} from a
  *       {@link io.unconquerable.intercept.xgboost.model.ModelSource}</li>
  *   <li>{@link io.unconquerable.intercept.xgboost.predictor.XGBoostPredictor} — runs inference
- *       and returns {@code Either<? extends Prediction, Error>}</li>
+ *       and returns {@link io.unconquerable.intercept.xgboost.prediction.Outcome}</li>
  *   <li>{@link io.unconquerable.intercept.xgboost.predictor.Predictor} — fluent builder that
  *       wires feature extraction, prediction, and result retrieval</li>
- *   <li>{@link io.unconquerable.intercept.xgboost.prediction.extractors.PredictionsExtractor} —
+ *   <li>{@link io.unconquerable.intercept.xgboost.prediction.decoder.PredictionsDecoder} —
  *       objective-specific converters from raw {@code float[][]} to typed
  *       {@link io.unconquerable.intercept.xgboost.prediction.Predictions}</li>
  *   <li>{@link io.unconquerable.intercept.xgboost.normalizer.Normalizer} — post-prediction
- *       normalisation (sigmoid, min-max, ranking)</li>
+ *       normalization (sigmoid, min-max, ranking)</li>
  * </ul>
  *
  * <p>Typical usage:
  * <pre>{@code
  * XGBoostPredictor predictor = new XGBoostPredictor(new FileModelLoader(source));
  *
- * Either<? extends Prediction<?>, Error> result = Predictor
- *     .predictor(predictor, input)
- *     .extractFeatures(featureExtractor)
- *     .predict()
- *     .result();
+ * Outcome<DefaultPrediction<float[][]>, PredictionError> outcome = predictor.predict(matrix);
  *
- * result.fold(
- *     prediction -> extractor.extract((float[][]) prediction.value()),
+ * outcome.fold(
+ *     prediction -> decoder.decode(prediction.value()),
  *     error      -> log(error.message())
  * );
  * }</pre>

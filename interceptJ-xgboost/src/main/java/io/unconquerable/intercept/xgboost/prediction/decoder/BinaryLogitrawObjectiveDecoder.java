@@ -1,4 +1,4 @@
-package io.unconquerable.intercept.xgboost.prediction.extractors;
+package io.unconquerable.intercept.xgboost.prediction.decoder;
 
 import io.unconquerable.intercept.xgboost.normalizer.Normalizer;
 import io.unconquerable.intercept.xgboost.prediction.DefaultPrediction;
@@ -9,7 +9,7 @@ import java.util.Arrays;
 
 
 /**
- * A {@link PredictionsExtractor} for the XGBoost {@code binary:logitraw} objective.
+ * A {@link PredictionsDecoder} for the XGBoost {@code binary:logitraw} objective.
  *
  * <p>XGBoost outputs raw log-odds for this objective rather than a probability.  The
  * injected {@link Normalizer} (typically a
@@ -19,20 +19,19 @@ import java.util.Arrays;
  * @param normalizer the normaliser used to transform each raw log-odds score to a probability
  * @author Rizwan Idrees
  */
-public record BinaryLogitrawObjectiveExtractor(Normalizer<Float, Double> normalizer)
-        implements PredictionsExtractor<Double, DefaultPrediction<Double>> {
+public record BinaryLogitrawObjectiveDecoder(Normalizer<Float, Double> normalizer)
+        implements PredictionsDecoder<Double, DefaultPrediction<Double>> {
 
     /**
-     * Extracts and normalises predictions from a {@code binary:logitraw} raw output matrix.
+     * Decodes and normalises predictions from a {@code binary:logitraw} raw output matrix.
      *
      * @param rawResult the raw score matrix; each row contains exactly one log-odds value
      * @return a {@link Predictions} collection with one normalised {@code Double} probability per input row
      */
     @Override
-    public Predictions<Double, DefaultPrediction<Double>> extract(@Nonnull float[][] rawResult) {
+    public Predictions<Double, DefaultPrediction<Double>> decode(@Nonnull float[][] rawResult) {
         return new Predictions<>(Arrays.stream(rawResult)
                 .map(row -> new DefaultPrediction<>(normalizer.normalize(row[0])))
                 .toList());
     }
 }
-

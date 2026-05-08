@@ -1,4 +1,4 @@
-package io.unconquerable.intercept.xgboost.prediction.extractors;
+package io.unconquerable.intercept.xgboost.prediction.decoder;
 
 import io.unconquerable.intercept.xgboost.normalizer.Normalizer;
 import io.unconquerable.intercept.xgboost.prediction.DefaultPrediction;
@@ -8,7 +8,7 @@ import jakarta.annotation.Nonnull;
 import java.util.Arrays;
 
 /**
- * A {@link PredictionsExtractor} for the XGBoost {@code reg:squarederror} objective.
+ * A {@link PredictionsDecoder} for the XGBoost {@code reg:squarederror} objective.
  *
  * <p>XGBoost outputs a raw continuous value in the same unit as the training labels (MSE
  * minimisation).  The injected {@link Normalizer} is applied to each score — use a
@@ -19,17 +19,17 @@ import java.util.Arrays;
  * @param normalizer the normaliser applied to each raw regression output
  * @author Rizwan Idrees
  */
-public record RegressionSquaredErrorObjectiveExtractor(Normalizer<Float, Double> normalizer)
-        implements PredictionsExtractor<Double, DefaultPrediction<Double>> {
+public record RegressionSquaredErrorObjectiveDecoder(Normalizer<Float, Double> normalizer)
+        implements PredictionsDecoder<Double, DefaultPrediction<Double>> {
 
     /**
-     * Extracts and normalises predictions from a {@code reg:squarederror} raw output matrix.
+     * Decodes and normalises predictions from a {@code reg:squarederror} raw output matrix.
      *
      * @param rawResult the raw score matrix; each row contains exactly one continuous regression value
      * @return a {@link Predictions} collection with one normalised {@code Double} value per input row
      */
     @Override
-    public Predictions<Double, DefaultPrediction<Double>> extract(@Nonnull float[][] rawResult) {
+    public Predictions<Double, DefaultPrediction<Double>> decode(@Nonnull float[][] rawResult) {
         return new Predictions<>(Arrays.stream(rawResult)
                 .map(row -> new DefaultPrediction<>(normalizer.normalize(row[0])))
                 .toList());

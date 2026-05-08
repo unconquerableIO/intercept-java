@@ -7,7 +7,7 @@ import java.util.List;
  * An ordered collection of {@link Prediction} values produced for a batch of input samples.
  *
  * <p>Wraps the list returned by a
- * {@link io.unconquerable.intercept.xgboost.prediction.extractors.PredictionsExtractor} and
+ * {@link io.unconquerable.intercept.xgboost.prediction.decoder.PredictionsDecoder} and
  * exposes positional access, size, and an unmodifiable view of all predictions.  The order
  * of entries matches the row order of the {@code float[][]} matrix passed to the extractor.
  *
