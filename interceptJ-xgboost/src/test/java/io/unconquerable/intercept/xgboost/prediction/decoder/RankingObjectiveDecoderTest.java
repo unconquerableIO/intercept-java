@@ -1,9 +1,11 @@
 package io.unconquerable.intercept.xgboost.prediction.decoder;
 
+import io.unconquerable.intercept.xgboost.prediction.DefaultPrediction;
 import io.unconquerable.intercept.xgboost.normalizer.RankingNormalizer;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
+import static io.unconquerable.intercept.xgboost.prediction.decoder.Decoders.rankingDecoder;
 import static org.junit.jupiter.api.Assertions.*;
 
 class RankingObjectiveDecoderTest {
@@ -11,8 +13,8 @@ class RankingObjectiveDecoderTest {
     @Nested
     class WithRankingNormalizer {
 
-        private final RankingObjectiveDecoder decoder =
-                new RankingObjectiveDecoder(new RankingNormalizer());
+        private final PredictionsDecoder<Double, DefaultPrediction<Double>> decoder =
+                rankingDecoder(new RankingNormalizer());
 
         @Test
         void highest_ranked_item_normalizes_to_1() {
@@ -47,7 +49,7 @@ class RankingObjectiveDecoderTest {
 
         @Test
         void flattens_first_element_of_each_row_before_normalizing() {
-            var decoder = new RankingObjectiveDecoder(scores -> {
+            var decoder = rankingDecoder(scores -> {
                 double[] result = new double[scores.length];
                 for (int i = 0; i < scores.length; i++) result[i] = scores[i];
                 return result;
@@ -62,7 +64,7 @@ class RankingObjectiveDecoderTest {
 
         @Test
         void result_size_matches_input_row_count() {
-            var decoder = new RankingObjectiveDecoder(new RankingNormalizer());
+            var decoder = rankingDecoder(new RankingNormalizer());
             assertEquals(4, decoder.decode(new float[][]{{1f}, {2f}, {3f}, {4f}}).size());
         }
     }

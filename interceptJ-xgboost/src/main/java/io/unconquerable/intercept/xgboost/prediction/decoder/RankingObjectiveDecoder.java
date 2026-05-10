@@ -15,9 +15,9 @@ import java.util.stream.IntStream;
  * the same inference batch.  This decoder flattens the per-row scores into a single array,
  * delegates to the injected {@link Normalizer} (typically a
  * {@link io.unconquerable.intercept.xgboost.normalizer.RankingNormalizer}) to rescale the
- * entire batch to {@code [0, 1]}, then wraps each normalised score in a {@code DefaultPrediction}.
+ * entire batch to {@code [0, 1]}, then wraps each normalized score in a {@code DefaultPrediction}.
  *
- * @param normalizer the normaliser applied across the full batch of raw ranking scores
+ * @param normalizer the normalizer applied across the full batch of raw ranking scores
  * @author Rizwan Idrees
  */
 public record RankingObjectiveDecoder(

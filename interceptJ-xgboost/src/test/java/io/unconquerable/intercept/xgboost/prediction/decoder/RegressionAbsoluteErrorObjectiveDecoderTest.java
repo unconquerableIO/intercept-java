@@ -1,9 +1,11 @@
 package io.unconquerable.intercept.xgboost.prediction.decoder;
 
+import io.unconquerable.intercept.xgboost.prediction.DefaultPrediction;
 import io.unconquerable.intercept.xgboost.normalizer.MinMaxNormalizer;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
+import static io.unconquerable.intercept.xgboost.prediction.decoder.Decoders.regressionAbsoluteError;
 import static org.junit.jupiter.api.Assertions.*;
 
 class RegressionAbsoluteErrorObjectiveDecoderTest {
@@ -11,8 +13,8 @@ class RegressionAbsoluteErrorObjectiveDecoderTest {
     @Nested
     class WithMinMaxNormalizer {
 
-        private final RegressionAbsoluteErrorObjectiveDecoder decoder =
-                new RegressionAbsoluteErrorObjectiveDecoder(new MinMaxNormalizer(0.0, 100.0));
+        private final PredictionsDecoder<Double, DefaultPrediction<Double>> decoder =
+                regressionAbsoluteError(new MinMaxNormalizer(0.0, 100.0));
 
         @Test
         void minimum_raw_value_normalizes_to_0() {
@@ -33,8 +35,8 @@ class RegressionAbsoluteErrorObjectiveDecoderTest {
     @Nested
     class DecodingMechanics {
 
-        private final RegressionAbsoluteErrorObjectiveDecoder decoder =
-                new RegressionAbsoluteErrorObjectiveDecoder(v -> (double) v);
+        private final PredictionsDecoder<Double, DefaultPrediction<Double>> decoder =
+                regressionAbsoluteError(v -> (double) v);
 
         @Test
         void normalizer_receives_first_element_of_each_row() {

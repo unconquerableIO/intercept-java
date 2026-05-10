@@ -1,15 +1,16 @@
 package io.unconquerable.intercept.xgboost.prediction.decoder;
 
-import io.unconquerable.intercept.xgboost.prediction.Predictions;
 import io.unconquerable.intercept.xgboost.prediction.DefaultPrediction;
+import io.unconquerable.intercept.xgboost.prediction.Predictions;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
+import static io.unconquerable.intercept.xgboost.prediction.decoder.Decoders.binaryLogistic;
 import static org.junit.jupiter.api.Assertions.*;
 
 class BinaryLogisticObjectiveDecoderTest {
 
-    private final BinaryLogisticObjectiveDecoder decoder = new BinaryLogisticObjectiveDecoder();
+    private final PredictionsDecoder<Double, DefaultPrediction<Double>> decoder = binaryLogistic();
 
     @Nested
     class Decoding {
