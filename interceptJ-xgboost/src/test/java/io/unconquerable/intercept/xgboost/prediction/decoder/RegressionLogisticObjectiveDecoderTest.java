@@ -1,9 +1,11 @@
 package io.unconquerable.intercept.xgboost.prediction.decoder;
 
+import io.unconquerable.intercept.xgboost.prediction.DefaultPrediction;
 import io.unconquerable.intercept.xgboost.normalizer.SigmoidNormalizer;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
+import static io.unconquerable.intercept.xgboost.prediction.decoder.Decoders.regressionLogistic;
 import static org.junit.jupiter.api.Assertions.*;
 
 class RegressionLogisticObjectiveDecoderTest {
@@ -11,8 +13,8 @@ class RegressionLogisticObjectiveDecoderTest {
     @Nested
     class WithSigmoidNormalizer {
 
-        private final RegressionLogisticObjectiveDecoder decoder =
-                new RegressionLogisticObjectiveDecoder(new SigmoidNormalizer());
+        private final PredictionsDecoder<Double, DefaultPrediction<Double>> decoder =
+                regressionLogistic(new SigmoidNormalizer());
 
         @Test
         void log_odds_of_zero_maps_to_probability_of_0_point_5() {
@@ -39,8 +41,8 @@ class RegressionLogisticObjectiveDecoderTest {
     @Nested
     class DecodingMechanics {
 
-        private final RegressionLogisticObjectiveDecoder decoder =
-                new RegressionLogisticObjectiveDecoder(v -> (double) v);
+        private final PredictionsDecoder<Double, DefaultPrediction<Double>> decoder =
+                regressionLogistic(v -> (double) v);
 
         @Test
         void normalizer_receives_first_element_of_each_row() {

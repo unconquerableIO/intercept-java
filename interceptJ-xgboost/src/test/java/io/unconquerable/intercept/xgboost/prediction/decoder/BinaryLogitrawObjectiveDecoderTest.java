@@ -1,9 +1,11 @@
 package io.unconquerable.intercept.xgboost.prediction.decoder;
 
+import io.unconquerable.intercept.xgboost.prediction.DefaultPrediction;
 import io.unconquerable.intercept.xgboost.normalizer.SigmoidNormalizer;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
+import static io.unconquerable.intercept.xgboost.prediction.decoder.Decoders.binaryLogitraw;
 import static org.junit.jupiter.api.Assertions.*;
 
 class BinaryLogitrawObjectiveDecoderTest {
@@ -11,8 +13,8 @@ class BinaryLogitrawObjectiveDecoderTest {
     @Nested
     class WithSigmoidNormalizer {
 
-        private final BinaryLogitrawObjectiveDecoder decoder =
-                new BinaryLogitrawObjectiveDecoder(new SigmoidNormalizer());
+        private final PredictionsDecoder<Double, DefaultPrediction<Double>> decoder =
+                binaryLogitraw(new SigmoidNormalizer());
 
         @Test
         void log_odds_of_zero_maps_to_probability_of_0_point_5() {
@@ -42,8 +44,8 @@ class BinaryLogitrawObjectiveDecoderTest {
     @Nested
     class DecodingMechanics {
 
-        private final BinaryLogitrawObjectiveDecoder decoder =
-                new BinaryLogitrawObjectiveDecoder(v -> (double) v);
+        private final PredictionsDecoder<Double, DefaultPrediction<Double>> decoder =
+                binaryLogitraw(v -> (double) v);
 
         @Test
         void result_size_matches_input_row_count() {
