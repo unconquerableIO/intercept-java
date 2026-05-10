@@ -5,10 +5,8 @@ import jakarta.annotation.Nonnull;
 /**
  * A {@link Normalizer} that applies the sigmoid (logistic) function to a raw score.
  *
- * <p>Maps any real-valued float to a probability in the open interval {@code (0, 1)} via:
- * <pre>
- *   σ(x) = 1 / (1 + e<sup>−x</sup>)
- * </pre>
+ * <p>Maps any real-valued float to a probability in the open interval {@code (0, 1)} via
+ * {@code σ(x) = 1 / (1 + e^(-x))}.
  * Typically used after a binary-classification XGBoost model whose objective does not
  * already apply a sigmoid transform (e.g. {@code reg:squarederror} used as a scorer).
  *
