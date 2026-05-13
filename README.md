@@ -40,7 +40,7 @@ Import the BOM to align all module versions, then declare only the modules you n
 
 ```kotlin
 dependencies {
-    implementation(platform("io.unconquerable:interceptJ-bom:0.0.1"))
+    implementation(platform("io.unconquerable:interceptJ-bom:0.0.3"))
     implementation("io.unconquerable:interceptJ-core")
     implementation("io.unconquerable:interceptJ-xgboost") // optional
 }
@@ -54,7 +54,7 @@ dependencies {
         <dependency>
             <groupId>io.unconquerable</groupId>
             <artifactId>interceptJ-bom</artifactId>
-            <version>0.0.1</version>
+            <version>0.0.3</version>
             <type>pom</type>
             <scope>import</scope>
         </dependency>
