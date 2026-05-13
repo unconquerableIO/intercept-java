@@ -10,6 +10,8 @@ XGBoost inference module for the `interceptJ` library. Provides a type-safe, exc
 - [Pipeline Overview](#pipeline-overview)
 - [Quick Start](#quick-start)
 - [Loading a Model](#loading-a-model)
+  - [Caching the Model](#caching-the-model)
+  - [Custom Model Loader](#custom-model-loader)
 - [The Prediction Pipeline](#the-prediction-pipeline)
   - [Predictor](#stage-1--predictor)
   - [Predicted](#stage-2--predicted)
@@ -110,6 +112,26 @@ XGBoostPredictor predictor = new XGBoostPredictor(new FileModelLoader(source));
 ```
 
 If the file cannot be read or deserialized, `FileModelLoader` throws `ModelLoaderException` at construction time — not at prediction time.
+
+### Caching the Model
+
+By default every `ModelLoader` loads the `Booster` from scratch on each call. Wrap any loader in `CachedModelLoader` to load once and reuse the same `Booster` instance for the lifetime of the application.
+
+```java
+ModelLoader loader = new CachedModelLoader(
+        new FileModelLoader(new ModelSource("/models/fraud.ubj", "fraud-v2", "2.1.0")));
+
+XGBoostPredictor predictor = new XGBoostPredictor(loader);
+```
+
+`CachedModelLoader` is thread-safe — concurrent callers are guaranteed to load the model exactly once. If the first load fails, the exception propagates and nothing is cached; the next call retries the underlying loader. Once a `Booster` is successfully loaded it is held for the lifetime of the `CachedModelLoader` instance.
+
+`CachedModelLoader` is a decorator and wraps any `ModelLoader` implementation:
+
+```java
+// Cache a custom S3 loader
+ModelLoader loader = new CachedModelLoader(new S3ModelLoader(bucket, key));
+```
 
 ### Custom model loader
 
@@ -467,5 +489,6 @@ Interceptor.interceptor()
 |---|---|---|
 | `ModelLoader` | `model` | Strategy interface for loading a `Booster` |
 | `FileModelLoader` | `model` | Loads a model from the local file system |
+| `CachedModelLoader` | `model` | Decorator that caches the `Booster` after the first successful load |
 | `ModelSource` | `model` | Holds path, name, and version of a model file |
 | `ModelLoaderException` | `model` | Thrown when a model cannot be loaded |
